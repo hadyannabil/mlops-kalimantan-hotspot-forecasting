@@ -3,6 +3,12 @@
 
   "image": "mcr.microsoft.com/devcontainers/python:3.2.2-3.12-bookworm",
 
+  "features": {
+    "ghcr.io/devcontainers/features/git-lfs:1": {
+      "version": "latest"
+    }
+  },
+
   "postCreateCommand": "python -m pip install -r requirements.txt",
 
   "customizations": {
