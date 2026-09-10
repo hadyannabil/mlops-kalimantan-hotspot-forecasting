@@ -1,51 +1,29 @@
 # Kalimantan Hotspot Forecasting
 
-Repositori ini merupakan proyek pengembangan sistem machine learning untuk memprediksi tingkat aktivitas hotspot harian pada kabupaten/kota di Kalimantan berdasarkan data **NASA FIRMS (Fire Information for Resource Management System)**.
+Proyek machine learning untuk memprediksi tingkat aktivitas hotspot harian pada kabupaten/kota di Kalimantan menggunakan data **NASA FIRMS (Fire Information for Resource Management System)**.
 
-Proyek dirancang dengan pendekatan **MLOps** agar proses pengembangan machine learning dapat dilakukan secara terstruktur, reproducible, dan mudah dikembangkan pada tahap berikutnya. Repositori ini menjadi fondasi untuk proses pengumpulan data, preprocessing, eksplorasi data, pengembangan model, evaluasi, monitoring, hingga continuous training.
-
-## Tentang Proyek
-
-Aktivitas hotspot dapat mengalami perubahan dari waktu ke waktu sehingga sistem prediksi membutuhkan data yang diperbarui secara berkala. NASA FIRMS menyediakan data observasi active fire dan hotspot yang dapat dimanfaatkan untuk membangun sistem prediksi dengan karakteristik data yang terus bertambah.
-
-Ruang lingkup proyek difokuskan pada wilayah kabupaten/kota di Kalimantan, Indonesia. Data yang diperoleh nantinya akan melalui tahapan pemrosesan sebelum digunakan untuk membangun model machine learning yang dapat memprediksi tingkat aktivitas hotspot harian.
-
-Pada tahap pengembangan saat ini, repositori difokuskan pada penyediaan **infrastruktur dasar proyek**, meliputi konfigurasi lingkungan pengembangan, struktur direktori, dependency management, serta workflow pengembangan menggunakan GitHub.
+Repositori ini dikembangkan dengan struktur yang sistematis dan lingkungan pengembangan yang konsisten menggunakan GitHub Codespaces. Pada tahap saat ini, proyek difokuskan pada penyiapan infrastruktur dasar sebagai fondasi untuk pengembangan pipeline data dan model machine learning pada tahap berikutnya.
 
 ## Tujuan Proyek
 
-Proyek ini dikembangkan dengan beberapa tujuan utama:
+Proyek ini bertujuan untuk:
 
-1. Membangun lingkungan pengembangan machine learning yang konsisten dan reproducible menggunakan GitHub Codespaces.
-2. Menyusun struktur repositori yang sistematis untuk mendukung pengembangan proyek machine learning.
-3. Menerapkan GitHub Flow sebagai workflow pengembangan dan eksperimen.
-4. Menyiapkan fondasi untuk proses pengumpulan dan pengolahan data NASA FIRMS.
-5. Mengembangkan sistem prediksi tingkat aktivitas hotspot harian pada kabupaten/kota di Kalimantan.
-6. Menyiapkan proyek agar dapat dikembangkan menuju implementasi pipeline MLOps seperti training, evaluation, monitoring, dan continuous training.
+* Membangun lingkungan pengembangan yang konsisten dan dapat direproduksi menggunakan GitHub Codespaces.
+* Menyusun struktur repositori yang terorganisasi untuk mendukung pengembangan proyek machine learning.
+* Menyiapkan fondasi untuk proses pengumpulan, pengolahan, pemodelan, dan evaluasi data hotspot.
+* Mengembangkan sistem yang dapat digunakan untuk memprediksi tingkat aktivitas hotspot harian pada wilayah kabupaten/kota di Kalimantan.
 
 ## Sumber Data
 
-Sumber data utama yang digunakan dalam proyek adalah **NASA FIRMS (Fire Information for Resource Management System)**.
+Data utama yang akan digunakan berasal dari **NASA FIRMS**, yang menyediakan data active fire dan hotspot berdasarkan observasi satelit.
 
-NASA FIRMS menyediakan data active fire dan hotspot yang diperoleh melalui observasi satelit. Data tersebut diperbarui secara berkala sehingga sesuai digunakan pada proyek yang membutuhkan data dinamis dan pengembangan model secara berkelanjutan.
+Data tersebut diperbarui secara berkala sehingga sesuai digunakan untuk pengembangan sistem machine learning dengan data yang terus bertambah dan berubah dari waktu ke waktu.
 
-Data mentah yang digunakan selama pengembangan ditempatkan pada direktori:
-
-```text
-data/raw/
-```
-
-Sedangkan data yang telah melalui tahap preprocessing atau transformasi ditempatkan pada:
-
-```text
-data/processed/
-```
-
-Dataset berukuran besar tidak disimpan secara langsung ke dalam repositori Git apabila tidak diperlukan. Pendekatan ini digunakan untuk menjaga repositori tetap ringan dan memisahkan source code dari data hasil pengolahan.
+Data mentah ditempatkan pada direktori `data/raw/`, sedangkan data yang telah melalui proses pengolahan ditempatkan pada `data/processed/`.
 
 ## Struktur Proyek
 
-Struktur direktori proyek disusun agar setiap komponen memiliki fungsi yang jelas dan mudah dikembangkan pada tahap berikutnya.
+Struktur repositori disusun untuk memisahkan setiap komponen berdasarkan fungsinya sehingga proses pengembangan lebih terorganisasi dan mudah dipelihara.
 
 ```text
 mlops-kalimantan-hotspot-forecasting/
@@ -54,21 +32,15 @@ mlops-kalimantan-hotspot-forecasting/
 │   └── devcontainer.json
 │
 ├── config/
-│
 ├── data/
 │   ├── raw/
 │   └── processed/
-│
 ├── docs/
-│
 ├── models/
-│
 ├── notebooks/
-│
 ├── src/
 │   ├── environment_test.py
 │   └── initial_experiment.py
-│
 ├── tests/
 │
 ├── .gitignore
@@ -77,52 +49,44 @@ mlops-kalimantan-hotspot-forecasting/
 └── requirements.txt
 ```
 
-### Penjelasan Struktur Direktori
+### Penjelasan Direktori
 
-**`.devcontainer/`**
-Berisi konfigurasi development container yang digunakan oleh GitHub Codespaces. Konfigurasi ini memastikan proyek dapat dijalankan dengan versi Python, dependency, dan ekstensi pengembangan yang konsisten.
+* **`.devcontainer/`**
+  Berisi konfigurasi GitHub Codespaces untuk menyediakan lingkungan pengembangan yang konsisten.
 
-**`config/`**
-Digunakan untuk menyimpan file konfigurasi proyek. Pada tahap pengembangan berikutnya folder ini dapat digunakan untuk konfigurasi data pipeline, model, training, maupun parameter lainnya.
+* **`config/`**
+  Digunakan untuk menyimpan file konfigurasi yang diperlukan selama pengembangan sistem.
 
-**`data/raw/`**
-Digunakan untuk menyimpan data mentah yang diperoleh langsung dari sumber data sebelum dilakukan preprocessing.
+* **`data/raw/`**
+  Digunakan untuk menyimpan data mentah sebelum melalui proses preprocessing.
 
-**`data/processed/`**
-Digunakan untuk menyimpan data yang telah melalui proses pembersihan, transformasi, agregasi, atau preprocessing dan siap digunakan pada proses berikutnya.
+* **`data/processed/`**
+  Digunakan untuk menyimpan data yang telah dibersihkan atau ditransformasikan dan siap digunakan pada tahap berikutnya.
 
-**`docs/`**
-Digunakan untuk menyimpan dokumentasi tambahan yang berkaitan dengan proyek.
+* **`docs/`**
+  Digunakan untuk menyimpan dokumentasi tambahan proyek.
 
-**`models/`**
-Digunakan sebagai lokasi penyimpanan artefak model machine learning yang dihasilkan dari proses training.
+* **`models/`**
+  Digunakan untuk menyimpan model atau artefak hasil proses training.
 
-**`notebooks/`**
-Digunakan untuk notebook eksperimen, Exploratory Data Analysis (EDA), visualisasi, dan pengujian awal sebelum implementasi dipindahkan menjadi kode yang lebih terstruktur.
+* **`notebooks/`**
+  Digunakan untuk Exploratory Data Analysis, eksperimen, dan pengujian awal menggunakan Jupyter Notebook.
 
-**`src/`**
-Berisi source code utama proyek seperti proses pengumpulan data, preprocessing, feature engineering, training model, evaluasi, dan komponen pipeline lainnya yang akan dikembangkan secara bertahap.
+* **`src/`**
+  Berisi source code utama proyek. Saat ini terdapat `environment_test.py` untuk menguji kesiapan environment dan `initial_experiment.py` untuk validasi awal proses pengembangan.
 
-Saat ini folder `src/` juga memiliki:
+* **`tests/`**
+  Digunakan untuk menyimpan pengujian terhadap fungsi atau komponen yang dikembangkan.
 
-* `environment_test.py` untuk memverifikasi lingkungan pengembangan dan dependency utama.
-* `initial_experiment.py` sebagai eksperimen sederhana untuk memvalidasi workflow pengembangan proyek.
-
-**`tests/`**
-Digunakan untuk menyimpan pengujian terhadap fungsi atau komponen sistem yang dikembangkan.
-
-**`requirements.txt`**
-Berisi daftar library Python yang diperlukan oleh proyek.
-
-**`.gitignore`**
-Menentukan file atau direktori yang tidak perlu disimpan dan dilacak oleh Git.
+* **`requirements.txt`**
+  Berisi daftar dependency Python yang diperlukan oleh proyek.
 
 ## Teknologi yang Digunakan
 
-Lingkungan pengembangan proyek saat ini menggunakan:
+Beberapa teknologi dan library utama yang digunakan dalam proyek ini meliputi:
 
 * Python 3.12
-* Git dan GitHub
+* GitHub
 * GitHub Codespaces
 * Git LFS
 * Pandas
@@ -132,241 +96,71 @@ Lingkungan pengembangan proyek saat ini menggunakan:
 * Jupyter
 * Requests
 
-Konfigurasi GitHub Codespaces juga menyediakan ekstensi pendukung untuk Python, Jupyter, dan GitLens.
+## Menjalankan Proyek
 
-## Menjalankan Proyek Menggunakan GitHub Codespaces
-
-GitHub Codespaces merupakan cara yang direkomendasikan untuk menjalankan proyek karena seluruh konfigurasi lingkungan telah didefinisikan pada file `.devcontainer/devcontainer.json`.
+Penggunaan **GitHub Codespaces** direkomendasikan karena konfigurasi environment proyek telah tersedia pada `.devcontainer/devcontainer.json`. Dengan cara ini, pengguna tidak perlu melakukan konfigurasi environment secara manual dari awal.
 
 ### 1. Buka Repository
 
-Buka repository:
+Buka repository `mlops-kalimantan-hotspot-forecasting` melalui GitHub.
 
-`hadyannabil/mlops-kalimantan-hotspot-forecasting`
+### 2. Buat Codespace
 
-### 2. Jalankan GitHub Codespaces
+Pada halaman repository:
 
-Pada halaman utama repository:
+1. Klik tombol **Code**.
+2. Pilih tab **Codespaces**.
+3. Klik **Create codespace on main**.
+4. Tunggu hingga proses konfigurasi environment selesai.
 
-1. Pilih tombol **Code**.
-2. Buka tab **Codespaces**.
-3. Pilih **Create codespace on main**.
-4. Tunggu hingga proses pembuatan development container selesai.
+GitHub Codespaces akan menggunakan konfigurasi yang terdapat pada `.devcontainer/devcontainer.json`.
 
-GitHub Codespaces akan membaca konfigurasi pada `.devcontainer/devcontainer.json`.
+### 3. Instalasi Dependency
 
-### 3. Instalasi Dependency Otomatis
+Dependency proyek dikonfigurasi melalui file `requirements.txt`.
 
-Setelah Codespace dibuat, dependency proyek akan diinstal secara otomatis melalui perintah:
+Apabila diperlukan instalasi manual, jalankan:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-Proses ini dilakukan oleh konfigurasi `postCreateCommand` sehingga pengguna tidak perlu melakukan instalasi library satu per satu.
+### 4. Verifikasi Environment
 
-### 4. Verifikasi Lingkungan
-
-Untuk memastikan lingkungan pengembangan telah dikonfigurasi dengan benar, jalankan:
+Setelah Codespace siap, jalankan:
 
 ```bash
 python src/environment_test.py
 ```
 
-Program akan menampilkan informasi versi Python dan beberapa library utama yang digunakan oleh proyek.
+Script tersebut digunakan untuk memastikan Python dan library utama proyek dapat digunakan dengan benar.
 
-Jika seluruh library dapat di-import tanpa error, lingkungan pengembangan siap digunakan.
+Jika seluruh dependency berhasil di-import tanpa error, environment telah siap digunakan untuk pengembangan.
 
 ### 5. Menjalankan Eksperimen Awal
 
-Eksperimen awal dapat dijalankan menggunakan:
+Untuk menjalankan eksperimen awal, gunakan:
 
 ```bash
 python src/initial_experiment.py
 ```
 
-Eksperimen ini menggunakan data sederhana untuk memvalidasi bahwa lingkungan Python, dependency, serta workflow pengembangan dapat berjalan dengan benar.
-
-Eksperimen tersebut belum merepresentasikan model prediksi hotspot final dan hanya digunakan sebagai validasi awal infrastruktur proyek.
-
-## Menjalankan Proyek Secara Lokal
-
-Selain menggunakan GitHub Codespaces, proyek dapat dijalankan pada komputer lokal selama Git dan Python tersedia.
-
-Clone repository terlebih dahulu:
-
-```bash
-git clone https://github.com/hadyannabil/mlops-kalimantan-hotspot-forecasting.git
-```
-
-Masuk ke direktori proyek:
-
-```bash
-cd mlops-kalimantan-hotspot-forecasting
-```
-
-Disarankan menggunakan virtual environment agar dependency proyek tidak bercampur dengan environment Python lainnya.
-
-Buat virtual environment:
-
-```bash
-python -m venv .venv
-```
-
-Aktifkan virtual environment pada Windows:
-
-```bash
-.venv\Scripts\activate
-```
-
-Aktifkan virtual environment pada Linux atau macOS:
-
-```bash
-source .venv/bin/activate
-```
-
-Kemudian instal seluruh dependency:
-
-```bash
-python -m pip install -r requirements.txt
-```
-
-Setelah instalasi selesai, lakukan verifikasi:
-
-```bash
-python src/environment_test.py
-```
-
-Jika tidak terdapat error, environment lokal siap digunakan untuk pengembangan.
-
-## Dependency Proyek
-
-Dependency Python dikelola melalui file `requirements.txt`.
-
-Dependency utama yang tersedia saat ini meliputi:
-
-```text
-pandas
-numpy
-scikit-learn
-matplotlib
-jupyter
-requests
-```
-
-Apabila library baru dibutuhkan selama pengembangan proyek, dependency tersebut perlu ditambahkan ke `requirements.txt` agar lingkungan pengembangan tetap reproducible.
-
-## Workflow Pengembangan
-
-Proyek menggunakan pendekatan **GitHub Flow** dalam proses pengembangan.
-
-Branch `main` digunakan untuk menyimpan versi proyek yang stabil, sedangkan pengembangan fitur atau eksperimen dilakukan melalui branch terpisah.
-
-Contoh pembuatan branch:
-
-```bash
-git checkout -b feat/nama-fitur
-```
-
-Setelah perubahan selesai dilakukan:
-
-```bash
-git add .
-git commit -m "feat: deskripsi perubahan"
-git push origin feat/nama-fitur
-```
-
-Selanjutnya perubahan dapat diajukan melalui **Pull Request** untuk ditinjau sebelum digabungkan ke branch `main`.
-
-Pendekatan ini membantu menjaga riwayat pengembangan tetap terstruktur serta memisahkan pekerjaan eksperimen dari versi utama proyek.
-
-## Alur Pengembangan Sistem
-
-Secara umum, proyek direncanakan berkembang melalui alur berikut:
-
-```text
-NASA FIRMS
-     │
-     ▼
-Data Ingestion
-     │
-     ▼
-Data Validation
-     │
-     ▼
-Data Preprocessing
-     │
-     ▼
-Feature Engineering
-     │
-     ▼
-Model Training
-     │
-     ▼
-Model Evaluation
-     │
-     ▼
-Prediction
-     │
-     ▼
-Monitoring
-     │
-     ▼
-Continuous Training
-```
-
-Implementasi setiap tahap akan dilakukan secara bertahap sesuai perkembangan proyek.
+Eksperimen ini digunakan sebagai validasi awal bahwa konfigurasi environment dan struktur proyek telah berjalan dengan baik. Script ini belum merupakan implementasi model prediksi hotspot final.
 
 ## Status Pengembangan
 
 Saat ini proyek berada pada tahap **setup infrastruktur dasar**.
 
-Komponen yang telah disiapkan meliputi:
+Komponen yang telah tersedia meliputi:
 
-* Repository GitHub sebagai version control.
-* Struktur direktori proyek yang sistematis.
-* GitHub Codespaces sebagai reproducible development environment.
-* Python 3.12 sebagai lingkungan utama.
-* Dependency management melalui `requirements.txt`.
-* Dukungan Git LFS.
-* Environment validation script.
-* Initial experiment untuk validasi workflow.
-* Penerapan workflow berbasis branch dan Pull Request.
+* Struktur direktori proyek yang terorganisasi.
+* Konfigurasi GitHub Codespaces.
+* Environment Python dan dependency proyek.
+* Script untuk verifikasi environment.
+* Eksperimen awal untuk validasi setup proyek.
 
-Tahap berikutnya akan berfokus pada pengembangan komponen data dan machine learning secara bertahap.
-
-## Pengembangan Selanjutnya
-
-Beberapa komponen yang direncanakan untuk dikembangkan pada tahap berikutnya antara lain:
-
-* Pengambilan data NASA FIRMS secara berkala.
-* Pemrosesan dan validasi data hotspot.
-* Exploratory Data Analysis.
-* Feature engineering.
-* Pengembangan model machine learning.
-* Evaluasi performa model.
-* Penyimpanan dan versioning model.
-* Monitoring data dan performa model.
-* Deteksi data drift.
-* Mekanisme continuous training.
-* Otomatisasi pipeline MLOps.
-
-## Reproducibility
-
-Salah satu tujuan utama struktur proyek ini adalah memastikan proses pengembangan dapat direproduksi.
-
-Konfigurasi environment disimpan pada `.devcontainer/devcontainer.json`, sedangkan dependency Python disimpan pada `requirements.txt`. Dengan demikian, developer lain dapat membuat environment yang memiliki konfigurasi serupa tanpa melakukan setup secara manual dari awal.
-
-Pendekatan ini juga mempermudah pengembangan proyek secara kolaboratif dan mengurangi perbedaan konfigurasi antar lingkungan.
+Tahap pengembangan selanjutnya akan berfokus pada pengambilan dan pengolahan data NASA FIRMS serta pengembangan model prediksi hotspot.
 
 ## Lisensi
 
-Proyek ini menggunakan **MIT License**. Informasi lengkap mengenai ketentuan lisensi tersedia pada file `LICENSE`.
-
-## Pengembang
-
-**Hadyan Nabil Sri Kaloko**
-
-Program Studi Teknik Informatika
-Fakultas Ilmu Komputer
-Universitas Brawijaya
+Proyek ini menggunakan **MIT License**. Informasi lebih lanjut tersedia pada file `LICENSE`.
