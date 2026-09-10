@@ -8,10 +8,10 @@ Repositori ini dikembangkan dengan struktur yang sistematis dan lingkungan penge
 
 Proyek ini bertujuan untuk:
 
-* Membangun lingkungan pengembangan yang konsisten dan dapat direproduksi menggunakan GitHub Codespaces.
-* Menyusun struktur repositori yang terorganisasi untuk mendukung pengembangan proyek machine learning.
-* Menyiapkan fondasi untuk proses pengumpulan, pengolahan, pemodelan, dan evaluasi data hotspot.
-* Mengembangkan sistem yang dapat digunakan untuk memprediksi tingkat aktivitas hotspot harian pada wilayah kabupaten/kota di Kalimantan.
+* Memanfaatkan data hotspot yang diperbarui secara berkala untuk mengetahui perubahan aktivitas hotspot dari waktu ke waktu.
+* Mengembangkan model machine learning yang mampu memprediksi tingkat aktivitas hotspot harian pada setiap wilayah kabupaten/kota di Kalimantan.
+* Mendukung proses pemantauan wilayah yang memiliki potensi peningkatan aktivitas hotspot.
+* Menjaga model tetap relevan terhadap perubahan karakteristik data melalui proses monitoring dan pembaruan model secara berkelanjutan.
 
 ## Sumber Data
 
