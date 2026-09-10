@@ -147,19 +147,23 @@ python src/initial_experiment.py
 
 Eksperimen ini digunakan sebagai validasi awal bahwa konfigurasi environment dan struktur proyek telah berjalan dengan baik. Script ini belum merupakan implementasi model prediksi hotspot final.
 
-## Status Pengembangan
+## Pengembangan Selanjutnya
 
-Saat ini proyek berada pada tahap **setup infrastruktur dasar**.
+Setelah infrastruktur dasar proyek selesai disiapkan, pengembangan selanjutnya akan difokuskan pada implementasi pipeline data dan machine learning secara bertahap.
 
-Komponen yang telah tersedia meliputi:
+Tahapan yang direncanakan meliputi:
 
-* Struktur direktori proyek yang terorganisasi.
-* Konfigurasi GitHub Codespaces.
-* Environment Python dan dependency proyek.
-* Script untuk verifikasi environment.
-* Eksperimen awal untuk validasi setup proyek.
+* Pengambilan data hotspot dari NASA FIRMS secara berkala.
+* Pembersihan dan preprocessing data.
+* Exploratory Data Analysis untuk memahami pola dan karakteristik data hotspot.
+* Penyusunan fitur yang relevan untuk proses pemodelan.
+* Pengembangan dan pelatihan model machine learning.
+* Evaluasi performa model menggunakan metrik yang sesuai.
+* Penyimpanan hasil prediksi dan artefak model.
+* Monitoring perubahan data untuk mendeteksi data drift.
+* Pengembangan mekanisme continuous training agar model dapat diperbarui ketika data baru tersedia.
 
-Tahap pengembangan selanjutnya akan berfokus pada pengambilan dan pengolahan data NASA FIRMS serta pengembangan model prediksi hotspot.
+Implementasi setiap tahap akan dilakukan secara bertahap sesuai perkembangan proyek dan kebutuhan sistem.
 
 ## Lisensi
 
