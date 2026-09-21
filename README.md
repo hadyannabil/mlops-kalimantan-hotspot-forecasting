@@ -1,23 +1,25 @@
 # Kalimantan Hotspot Forecasting
 
-Proyek machine learning untuk memprediksi tingkat aktivitas hotspot harian pada kabupaten/kota di Kalimantan menggunakan data **NASA FIRMS (Fire Information for Resource Management System)**.
+Proyek machine learning untuk memprediksi **lonjakan jumlah deteksi hotspot dalam tiga hari berikutnya** pada kabupaten/kota di Kalimantan menggunakan data **NASA FIRMS (Fire Information for Resource Management System)**.
 
-Repositori ini dikembangkan dengan struktur yang sistematis dan lingkungan pengembangan yang konsisten menggunakan GitHub Codespaces. Pada tahap saat ini, proyek difokuskan pada penyiapan infrastruktur dasar sebagai fondasi untuk pengembangan pipeline data dan model machine learning pada tahap berikutnya.
+Repositori ini dikembangkan dengan struktur yang sistematis dan lingkungan pengembangan yang konsisten menggunakan GitHub Codespaces. Pada tahap saat ini, proyek difokuskan pada perancangan dan pengembangan pipeline data sebagai fondasi untuk proses preprocessing, pemodelan, dan monitoring pada tahap berikutnya.
 
 ## Tujuan Proyek
 
 Proyek ini bertujuan untuk:
 
-* Memanfaatkan data hotspot yang diperbarui secara berkala untuk mengetahui perubahan aktivitas hotspot dari waktu ke waktu.
-* Mengembangkan model machine learning yang mampu memprediksi tingkat aktivitas hotspot harian pada setiap wilayah kabupaten/kota di Kalimantan.
-* Mendukung proses pemantauan wilayah yang memiliki potensi peningkatan aktivitas hotspot.
+* Memanfaatkan data hotspot yang diperbarui secara berkala untuk memantau perubahan aktivitas hotspot dari waktu ke waktu.
+* Mengembangkan model machine learning yang mampu memprediksi kemungkinan lonjakan jumlah deteksi hotspot dalam tiga hari berikutnya pada setiap wilayah kabupaten/kota di Kalimantan.
+* Mendukung proses pemantauan wilayah dengan memberikan informasi mengenai kondisi hotspot yang telah teramati serta indikasi peningkatan aktivitas.
 * Menjaga model tetap relevan terhadap perubahan karakteristik data melalui proses monitoring dan pembaruan model secara berkelanjutan.
 
 ## Sumber Data
 
-Data utama yang akan digunakan berasal dari **NASA FIRMS**, yang menyediakan data active fire dan hotspot berdasarkan observasi satelit.
+Data utama yang digunakan berasal dari **NASA FIRMS**, khususnya produk **VIIRS NOAA-20**, yang menyediakan data active fire dan thermal anomaly berdasarkan observasi satelit.
 
-Data tersebut diperbarui secara berkala sehingga sesuai digunakan untuk pengembangan sistem machine learning dengan data yang terus bertambah dan berubah dari waktu ke waktu.
+Data **Near Real-Time (NRT)** digunakan sebagai sumber data dinamis karena diperbarui secara berkala dan dapat diakses melalui NASA FIRMS Area API. Data historis dapat menggunakan produk Standard Processing (SP) ketika tersedia.
+
+Koordinat setiap deteksi hotspot dipetakan ke wilayah kabupaten/kota menggunakan batas administratif **ADM2 dari geoBoundaries** sebagai data referensi.
 
 Data mentah ditempatkan pada direktori `data/raw/`, sedangkan data yang telah melalui proses pengolahan ditempatkan pada `data/processed/`.
 
@@ -51,39 +53,39 @@ mlops-kalimantan-hotspot-forecasting/
 
 ### Penjelasan Direktori
 
-* **`.devcontainer/`**
+* **`.devcontainer/`**  
   Berisi konfigurasi GitHub Codespaces untuk menyediakan lingkungan pengembangan yang konsisten.
 
-* **`config/`**
+* **`config/`**  
   Digunakan untuk menyimpan file konfigurasi yang diperlukan selama pengembangan sistem.
 
-* **`data/raw/`**
+* **`data/raw/`**  
   Digunakan untuk menyimpan data mentah sebelum melalui proses preprocessing.
 
-* **`data/processed/`**
-  Digunakan untuk menyimpan data yang telah dibersihkan atau ditransformasikan dan siap digunakan pada tahap berikutnya.
+* **`data/processed/`**  
+  Digunakan untuk menyimpan data yang telah dibersihkan, ditransformasikan, dan disiapkan untuk proses berikutnya.
 
-* **`docs/`**
+* **`docs/`**  
   Digunakan untuk menyimpan dokumentasi tambahan proyek.
 
-* **`models/`**
+* **`models/`**  
   Digunakan untuk menyimpan model atau artefak hasil proses training.
 
-* **`notebooks/`**
+* **`notebooks/`**  
   Digunakan untuk Exploratory Data Analysis, eksperimen, dan pengujian awal menggunakan Jupyter Notebook.
 
-* **`src/`**
+* **`src/`**  
   Berisi source code utama proyek. Saat ini terdapat `environment_test.py` untuk menguji kesiapan environment dan `initial_experiment.py` untuk validasi awal proses pengembangan.
 
-* **`tests/`**
+* **`tests/`**  
   Digunakan untuk menyimpan pengujian terhadap fungsi atau komponen yang dikembangkan.
 
-* **`requirements.txt`**
+* **`requirements.txt`**  
   Berisi daftar dependency Python yang diperlukan oleh proyek.
 
 ## Teknologi yang Digunakan
 
-Beberapa teknologi dan library utama yang digunakan dalam proyek ini meliputi:
+Beberapa teknologi dan library utama yang digunakan atau direncanakan dalam proyek ini meliputi:
 
 * Python 3.12
 * GitHub
@@ -95,6 +97,7 @@ Beberapa teknologi dan library utama yang digunakan dalam proyek ini meliputi:
 * Matplotlib
 * Jupyter
 * Requests
+* GeoPandas
 
 ## Menjalankan Proyek
 
@@ -145,7 +148,7 @@ Untuk menjalankan eksperimen awal, gunakan:
 python src/initial_experiment.py
 ```
 
-Eksperimen ini digunakan sebagai validasi awal bahwa konfigurasi environment dan struktur proyek telah berjalan dengan baik. Script ini belum merupakan implementasi model prediksi hotspot final.
+Eksperimen ini digunakan sebagai validasi awal bahwa konfigurasi environment dan struktur proyek telah berjalan dengan baik. Script ini belum merupakan implementasi final pipeline maupun model prediksi hotspot.
 
 ## Pengembangan Selanjutnya
 
@@ -153,15 +156,16 @@ Setelah infrastruktur dasar proyek selesai disiapkan, pengembangan selanjutnya a
 
 Tahapan yang direncanakan meliputi:
 
-* Pengambilan data hotspot dari NASA FIRMS secara berkala.
-* Pembersihan dan preprocessing data.
-* Exploratory Data Analysis untuk memahami pola dan karakteristik data hotspot.
-* Penyusunan fitur yang relevan untuk proses pemodelan.
-* Pengembangan dan pelatihan model machine learning.
+* Pengambilan data hotspot NASA FIRMS secara berkala melalui API.
+* Pembersihan dan validasi data.
+* Pemetaan titik hotspot ke kabupaten/kota menggunakan geoBoundaries ADM2.
+* Agregasi data harian pada tingkat kabupaten/kota.
+* Penyusunan fitur berdasarkan histori aktivitas hotspot.
+* Pengembangan model untuk memprediksi lonjakan jumlah deteksi hotspot dalam tiga hari berikutnya.
 * Evaluasi performa model menggunakan metrik yang sesuai.
 * Penyimpanan hasil prediksi dan artefak model.
-* Monitoring perubahan data untuk mendeteksi data drift.
-* Pengembangan mekanisme continuous training agar model dapat diperbarui ketika data baru tersedia.
+* Monitoring perubahan data dan performa model.
+* Pengembangan mekanisme continuous training agar model dapat diperbarui ketika diperlukan.
 
 Implementasi setiap tahap akan dilakukan secara bertahap sesuai perkembangan proyek dan kebutuhan sistem.
 
