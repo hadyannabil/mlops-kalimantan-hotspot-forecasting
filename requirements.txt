@@ -4,3 +4,6 @@ scikit-learn
 matplotlib
 jupyter
 requests
+urllib3
+geopandas
+shapely
