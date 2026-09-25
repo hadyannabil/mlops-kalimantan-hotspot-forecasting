@@ -24,11 +24,9 @@ mlops-kalimantan-hotspot-forecasting/
 ├── data/
 │   ├── raw/
 │   │   ├── firms/
-│   │   │   ├── snapshots/
 │   │   │   └── YYYY-MM-DD.csv
 │   │   └── reference/
 │   │       └── geoBoundaries-IDN-ADM2.geojson
-│   │
 │   └── processed/
 │       └── daily_hotspot_activity.csv
 │
@@ -44,39 +42,35 @@ mlops-kalimantan-hotspot-forecasting/
 └── README.md
 ```
 
+Repository menyertakan sampel raw data FIRMS. Snapshot ingestion, processed dataset, dan file geoBoundaries tidak disimpan di Git.
+
 ## Setup
 
 Proyek dikembangkan menggunakan Python 3.12 dan GitHub Codespaces.
 
-Install seluruh dependency:
+Install dependency:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-Library utama yang digunakan antara lain:
-
-- Pandas
-- Requests
-- GeoPandas
-- Shapely
-- NumPy
-- Scikit-learn
-- Matplotlib
+Library utama yang digunakan meliputi Pandas, Requests, GeoPandas, Shapely, NumPy, Scikit-learn, dan Matplotlib.
 
 ## Data Ingestion
 
-Script ingestion tersedia pada:
+Data ingestion dijalankan melalui:
 
 ```text
 src/ingest_data.py
 ```
 
-Sebelum menjalankan script, simpan NASA FIRMS `MAP_KEY` sebagai environment variable:
+Sebelum menjalankan script, siapkan NASA FIRMS `MAP_KEY` sebagai environment variable:
 
 ```bash
 export MAP_KEY="YOUR_MAP_KEY"
 ```
+
+Untuk GitHub Codespaces, `MAP_KEY` dapat disimpan sebagai **Codespaces Secret** agar tidak ditulis langsung pada source code atau repository.
 
 Jalankan ingestion:
 
@@ -87,32 +81,25 @@ python src/ingest_data.py
 Script akan:
 
 - mengambil data VIIRS NOAA-20 NRT untuk tiga hari terbaru;
-- memvalidasi respons NASA FIRMS;
+- memvalidasi respons dan struktur data;
+- melakukan retry ketika terjadi gangguan request;
 - menyimpan raw data berdasarkan tanggal;
-- membuat snapshot baru untuk setiap ingestion run;
-- menyimpan metadata ingestion;
-- melakukan retry ketika terjadi gangguan request.
-
-Contoh hasil:
-
-```text
-data/raw/firms/
-├── 2026-09-23.csv
-├── 2026-09-24.csv
-├── 2026-09-25.csv
-└── snapshots/
-    ├── firms_<run_id>.csv
-    └── metadata_<run_id>.json
-```
+- membuat snapshot untuk setiap ingestion run;
+- menyimpan metadata ingestion.
 
 Snapshot menggunakan timestamp sehingga data dari run sebelumnya tidak ditimpa.
 
 ## Preprocessing
 
-Pastikan file geoBoundaries ADM2 Indonesia tersedia pada:
+Preprocessing menggunakan **geoBoundaries ADM2 Indonesia** sebagai referensi batas administratif.
 
-```text
-data/raw/reference/geoBoundaries-IDN-ADM2.geojson
+File referensi tidak disimpan di repository karena ukurannya besar. Jika belum tersedia, jalankan:
+
+```bash
+mkdir -p data/raw/reference
+
+wget -O data/raw/reference/geoBoundaries-IDN-ADM2.geojson \
+"https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/IDN/ADM2/geoBoundaries-IDN-ADM2.geojson"
 ```
 
 Kemudian jalankan:
@@ -124,12 +111,12 @@ python src/preprocess.py
 Tahapan preprocessing meliputi:
 
 - validasi struktur dan tipe data;
-- pengecekan tanggal, waktu, dan koordinat;
+- validasi tanggal, waktu, dan koordinat;
 - penghapusan exact duplicate;
 - pengecekan missing value;
 - spatial join dengan geoBoundaries ADM2;
 - penyaringan 56 kabupaten/kota di Kalimantan;
-- agregasi jumlah hotspot per wilayah dan tanggal;
+- agregasi hotspot per wilayah dan tanggal;
 - pembentukan complete daily grid untuk seluruh wilayah studi.
 
 Hasil preprocessing disimpan pada:
@@ -138,7 +125,7 @@ Hasil preprocessing disimpan pada:
 data/processed/daily_hotspot_activity.csv
 ```
 
-Dataset utama memiliki kolom:
+Dataset memiliki kolom:
 
 ```text
 date
@@ -163,7 +150,9 @@ python src/ingest_data.py
 python src/preprocess.py
 ```
 
-`ingest_data.py` dapat dijalankan kembali untuk mengambil data terbaru tanpa menghapus snapshot dari proses sebelumnya. `preprocess.py` juga memperbarui historical processed dataset berdasarkan kombinasi tanggal dan ID wilayah tanpa menambahkan baris duplikat.
+`ingest_data.py` dapat dijalankan kembali untuk mengambil data terbaru tanpa menghapus snapshot sebelumnya.
+
+`preprocess.py` memperbarui historical processed dataset berdasarkan kombinasi `date` dan `shapeID` sehingga pemrosesan ulang tidak menghasilkan baris duplikat.
 
 ## Next Steps
 
