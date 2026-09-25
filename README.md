@@ -1,170 +1,181 @@
 # Kalimantan Hotspot Forecasting
 
-Proyek machine learning untuk memprediksi tingkat aktivitas hotspot harian pada kabupaten/kota di Kalimantan menggunakan data **NASA FIRMS (Fire Information for Resource Management System)**.
+Proyek MLOps untuk mengolah data hotspot NASA FIRMS dan menyiapkan dataset harian kabupaten/kota di Kalimantan sebagai dasar prediksi lonjakan jumlah deteksi hotspot dalam tiga hari berikutnya.
 
-Repositori ini dikembangkan dengan struktur yang sistematis dan lingkungan pengembangan yang konsisten menggunakan GitHub Codespaces. Pada tahap saat ini, proyek difokuskan pada penyiapan infrastruktur dasar sebagai fondasi untuk pengembangan pipeline data dan model machine learning pada tahap berikutnya.
+Pipeline saat ini mencakup **data ingestion** dari NASA FIRMS Area API dan **preprocessing otomatis** hingga menghasilkan data aktivitas hotspot harian pada 56 kabupaten/kota di lima provinsi Kalimantan.
 
-## Tujuan Proyek
+## Data Source
 
-Proyek ini bertujuan untuk:
+Sumber data utama:
 
-* Memanfaatkan data hotspot yang diperbarui secara berkala untuk mengetahui perubahan aktivitas hotspot dari waktu ke waktu.
-* Mengembangkan model machine learning yang mampu memprediksi tingkat aktivitas hotspot harian pada setiap wilayah kabupaten/kota di Kalimantan.
-* Mendukung proses pemantauan wilayah yang memiliki potensi peningkatan aktivitas hotspot.
-* Menjaga model tetap relevan terhadap perubahan karakteristik data melalui proses monitoring dan pembaruan model secara berkelanjutan.
+- **NASA FIRMS Area API**
+- Produk: **VIIRS NOAA-20 Near Real-Time (NRT)**
+- Bounding box: `108,-5,120,8`
+- Rentang pengambilan: 3 hari terbaru
+- Format: CSV
 
-## Sumber Data
+Referensi batas administratif menggunakan **geoBoundaries ADM2 Indonesia** untuk memetakan koordinat hotspot ke kabupaten/kota.
 
-Data utama yang akan digunakan berasal dari **NASA FIRMS**, yang menyediakan data active fire dan hotspot berdasarkan observasi satelit.
-
-Data tersebut diperbarui secara berkala sehingga sesuai digunakan untuk pengembangan sistem machine learning dengan data yang terus bertambah dan berubah dari waktu ke waktu.
-
-Data mentah ditempatkan pada direktori `data/raw/`, sedangkan data yang telah melalui proses pengolahan ditempatkan pada `data/processed/`.
-
-## Struktur Proyek
-
-Struktur repositori disusun untuk memisahkan setiap komponen berdasarkan fungsinya sehingga proses pengembangan lebih terorganisasi dan mudah dipelihara.
+## Project Structure
 
 ```text
 mlops-kalimantan-hotspot-forecasting/
 │
-├── .devcontainer/
-│   └── devcontainer.json
-│
-├── config/
 ├── data/
 │   ├── raw/
+│   │   ├── firms/
+│   │   │   ├── snapshots/
+│   │   │   └── YYYY-MM-DD.csv
+│   │   └── reference/
+│   │       └── geoBoundaries-IDN-ADM2.geojson
+│   │
 │   └── processed/
-├── docs/
-├── models/
-├── notebooks/
-├── src/
-│   ├── environment_test.py
-│   └── initial_experiment.py
-├── tests/
+│       └── daily_hotspot_activity.csv
 │
-├── .gitignore
-├── LICENSE
-├── README.md
-└── requirements.txt
+├── src/
+│   ├── ingest_data.py
+│   ├── preprocess.py
+│   └── initial_experiment.py
+│
+├── notebooks/
+├── models/
+├── tests/
+├── requirements.txt
+└── README.md
 ```
 
-### Penjelasan Direktori
+## Setup
 
-* **`.devcontainer/`**
-  Berisi konfigurasi GitHub Codespaces untuk menyediakan lingkungan pengembangan yang konsisten.
+Proyek dikembangkan menggunakan Python 3.12 dan GitHub Codespaces.
 
-* **`config/`**
-  Digunakan untuk menyimpan file konfigurasi yang diperlukan selama pengembangan sistem.
-
-* **`data/raw/`**
-  Digunakan untuk menyimpan data mentah sebelum melalui proses preprocessing.
-
-* **`data/processed/`**
-  Digunakan untuk menyimpan data yang telah dibersihkan atau ditransformasikan dan siap digunakan pada tahap berikutnya.
-
-* **`docs/`**
-  Digunakan untuk menyimpan dokumentasi tambahan proyek.
-
-* **`models/`**
-  Digunakan untuk menyimpan model atau artefak hasil proses training.
-
-* **`notebooks/`**
-  Digunakan untuk Exploratory Data Analysis, eksperimen, dan pengujian awal menggunakan Jupyter Notebook.
-
-* **`src/`**
-  Berisi source code utama proyek. Saat ini terdapat `environment_test.py` untuk menguji kesiapan environment dan `initial_experiment.py` untuk validasi awal proses pengembangan.
-
-* **`tests/`**
-  Digunakan untuk menyimpan pengujian terhadap fungsi atau komponen yang dikembangkan.
-
-* **`requirements.txt`**
-  Berisi daftar dependency Python yang diperlukan oleh proyek.
-
-## Teknologi yang Digunakan
-
-Beberapa teknologi dan library utama yang digunakan dalam proyek ini meliputi:
-
-* Python 3.12
-* GitHub
-* GitHub Codespaces
-* Git LFS
-* Pandas
-* NumPy
-* Scikit-learn
-* Matplotlib
-* Jupyter
-* Requests
-
-## Menjalankan Proyek
-
-Penggunaan **GitHub Codespaces** direkomendasikan karena konfigurasi environment proyek telah tersedia pada `.devcontainer/devcontainer.json`. Dengan cara ini, pengguna tidak perlu melakukan konfigurasi environment secara manual dari awal.
-
-### 1. Buka Repository
-
-Buka repository `mlops-kalimantan-hotspot-forecasting` melalui GitHub.
-
-### 2. Buat Codespace
-
-Pada halaman repository:
-
-1. Klik tombol **Code**.
-2. Pilih tab **Codespaces**.
-3. Klik **Create codespace on main**.
-4. Tunggu hingga proses konfigurasi environment selesai.
-
-GitHub Codespaces akan menggunakan konfigurasi yang terdapat pada `.devcontainer/devcontainer.json`.
-
-### 3. Instalasi Dependency
-
-Dependency proyek dikonfigurasi melalui file `requirements.txt`.
-
-Apabila diperlukan instalasi manual, jalankan:
+Install seluruh dependency:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-### 4. Verifikasi Environment
+Library utama yang digunakan antara lain:
 
-Setelah Codespace siap, jalankan:
+- Pandas
+- Requests
+- GeoPandas
+- Shapely
+- NumPy
+- Scikit-learn
+- Matplotlib
 
-```bash
-python src/environment_test.py
+## Data Ingestion
+
+Script ingestion tersedia pada:
+
+```text
+src/ingest_data.py
 ```
 
-Script tersebut digunakan untuk memastikan Python dan library utama proyek dapat digunakan dengan benar.
-
-Jika seluruh dependency berhasil di-import tanpa error, environment telah siap digunakan untuk pengembangan.
-
-### 5. Menjalankan Eksperimen Awal
-
-Untuk menjalankan eksperimen awal, gunakan:
+Sebelum menjalankan script, simpan NASA FIRMS `MAP_KEY` sebagai environment variable:
 
 ```bash
-python src/initial_experiment.py
+export MAP_KEY="YOUR_MAP_KEY"
 ```
 
-Eksperimen ini digunakan sebagai validasi awal bahwa konfigurasi environment dan struktur proyek telah berjalan dengan baik. Script ini belum merupakan implementasi model prediksi hotspot final.
+Jalankan ingestion:
 
-## Pengembangan Selanjutnya
+```bash
+python src/ingest_data.py
+```
 
-Setelah infrastruktur dasar proyek selesai disiapkan, pengembangan selanjutnya akan difokuskan pada implementasi pipeline data dan machine learning secara bertahap.
+Script akan:
 
-Tahapan yang direncanakan meliputi:
+- mengambil data VIIRS NOAA-20 NRT untuk tiga hari terbaru;
+- memvalidasi respons NASA FIRMS;
+- menyimpan raw data berdasarkan tanggal;
+- membuat snapshot baru untuk setiap ingestion run;
+- menyimpan metadata ingestion;
+- melakukan retry ketika terjadi gangguan request.
 
-* Pengambilan data hotspot dari NASA FIRMS secara berkala.
-* Pembersihan dan preprocessing data.
-* Exploratory Data Analysis untuk memahami pola dan karakteristik data hotspot.
-* Penyusunan fitur yang relevan untuk proses pemodelan.
-* Pengembangan dan pelatihan model machine learning.
-* Evaluasi performa model menggunakan metrik yang sesuai.
-* Penyimpanan hasil prediksi dan artefak model.
-* Monitoring perubahan data untuk mendeteksi data drift.
-* Pengembangan mekanisme continuous training agar model dapat diperbarui ketika data baru tersedia.
+Contoh hasil:
 
-Implementasi setiap tahap akan dilakukan secara bertahap sesuai perkembangan proyek dan kebutuhan sistem.
+```text
+data/raw/firms/
+├── 2026-09-23.csv
+├── 2026-09-24.csv
+├── 2026-09-25.csv
+└── snapshots/
+    ├── firms_<run_id>.csv
+    └── metadata_<run_id>.json
+```
 
-## Lisensi
+Snapshot menggunakan timestamp sehingga data dari run sebelumnya tidak ditimpa.
 
-Proyek ini menggunakan **MIT License**. Informasi lebih lanjut tersedia pada file `LICENSE`.
+## Preprocessing
+
+Pastikan file geoBoundaries ADM2 Indonesia tersedia pada:
+
+```text
+data/raw/reference/geoBoundaries-IDN-ADM2.geojson
+```
+
+Kemudian jalankan:
+
+```bash
+python src/preprocess.py
+```
+
+Tahapan preprocessing meliputi:
+
+- validasi struktur dan tipe data;
+- pengecekan tanggal, waktu, dan koordinat;
+- penghapusan exact duplicate;
+- pengecekan missing value;
+- spatial join dengan geoBoundaries ADM2;
+- penyaringan 56 kabupaten/kota di Kalimantan;
+- agregasi jumlah hotspot per wilayah dan tanggal;
+- pembentukan complete daily grid untuk seluruh wilayah studi.
+
+Hasil preprocessing disimpan pada:
+
+```text
+data/processed/daily_hotspot_activity.csv
+```
+
+Dataset utama memiliki kolom:
+
+```text
+date
+shapeID
+kabupaten_kota
+province
+hotspot_count
+mean_frp
+max_frp
+total_frp
+status
+```
+
+Wilayah tanpa deteksi pada tanggal yang valid tetap disimpan dengan `hotspot_count = 0`.
+
+## Running the Pipeline
+
+Urutan menjalankan pipeline:
+
+```bash
+python src/ingest_data.py
+python src/preprocess.py
+```
+
+`ingest_data.py` dapat dijalankan kembali untuk mengambil data terbaru tanpa menghapus snapshot dari proses sebelumnya. `preprocess.py` juga memperbarui historical processed dataset berdasarkan kombinasi tanggal dan ID wilayah tanpa menambahkan baris duplikat.
+
+## Next Steps
+
+Tahap pengembangan berikutnya mencakup:
+
+- feature engineering;
+- pembentukan label SPIKE / NO SPIKE;
+- temporal train-validation-test split;
+- training Random Forest;
+- daily inference;
+- monitoring dan evaluasi kebutuhan retraining.
+
+## License
+
+Proyek ini menggunakan **MIT License**.

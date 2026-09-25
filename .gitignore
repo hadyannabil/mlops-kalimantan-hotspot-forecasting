@@ -225,10 +225,19 @@ __marimo__/
 .env
 .env.*
 
-# Raw and processed datasets
+# Raw datasets
 data/raw/*
 !data/raw/.gitkeep
 
+# Keep raw FIRMS sample
+!data/raw/firms/
+data/raw/firms/*
+!data/raw/firms/2026-09-25.csv
+
+# Reference datasets are kept locally
+data/raw/reference/
+
+# Processed datasets
 data/processed/*
 !data/processed/.gitkeep
 
