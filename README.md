@@ -26,9 +26,9 @@ mlops-kalimantan-hotspot-forecasting/
 │   │   ├── firms/
 │   │   │   └── YYYY-MM-DD.csv
 │   │   └── reference/
-│   │       └── geoBoundaries-IDN-ADM2.geojson
+│   │       └── geoBoundaries-IDN-ADM2.geojson   # downloaded locally
 │   └── processed/
-│       └── daily_hotspot_activity.csv
+│       └── daily_hotspot_activity.csv           # generated locally
 │
 ├── src/
 │   ├── ingest_data.py
@@ -42,7 +42,7 @@ mlops-kalimantan-hotspot-forecasting/
 └── README.md
 ```
 
-Repository menyertakan sampel raw data FIRMS. Snapshot ingestion, processed dataset, dan file geoBoundaries tidak disimpan di Git.
+Repository menyertakan sampel raw data FIRMS. File snapshot ingestion, metadata, processed dataset, dan geoBoundaries dihasilkan atau diunduh secara lokal dan tidak disimpan di repository.
 
 ## Setup
 
