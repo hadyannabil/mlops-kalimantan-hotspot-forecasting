@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import logging
 import os
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -38,6 +37,7 @@ REQUIRED_COLUMNS = {
     "daynight",
 }
 
+
 def get_map_key() -> str:
     """Mengambil NASA FIRMS MAP_KEY dari environment variable."""
     map_key = os.getenv("MAP_KEY")
@@ -49,6 +49,7 @@ def get_map_key() -> str:
         )
 
     return map_key
+
 
 def create_session() -> requests.Session:
     """Membuat HTTP session dengan mekanisme retry."""
@@ -65,6 +66,7 @@ def create_session() -> requests.Session:
     session.mount("https://", adapter)
 
     return session
+
 
 def fetch_data(
     session: requests.Session,
@@ -90,6 +92,7 @@ def fetch_data(
 
     return response
 
+
 def parse_data(response: requests.Response) -> pd.DataFrame:
     """Membaca dan memvalidasi respons CSV NASA FIRMS."""
     if not response.text.strip():
@@ -108,6 +111,7 @@ def parse_data(response: requests.Response) -> pd.DataFrame:
         )
 
     return data
+
 
 def save_raw_data(
     response: requests.Response,
@@ -178,6 +182,7 @@ def save_raw_data(
             f"{len(daily_data)} record"
         )
 
+
 def save_failure_metadata(error: Exception) -> None:
     """Menyimpan metadata ketika proses ingestion gagal."""
     SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
@@ -210,6 +215,7 @@ def save_failure_metadata(error: Exception) -> None:
         )
 
     print(f"Metadata kegagalan disimpan: {metadata_path}")
+
 
 if __name__ == "__main__":
     try:

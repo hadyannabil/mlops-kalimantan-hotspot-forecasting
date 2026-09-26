@@ -567,14 +567,18 @@ def save_processed_data(
 
     output_data = daily_data.copy()
 
-    latest_date = output_data["date"].max()
+    current_time = pd.Timestamp.now(tz="UTC")
 
-    output_data["status"] = "ready"
-
-    output_data.loc[
-        output_data["date"] == latest_date,
-        "status"
-    ] = "partial"
+    output_data["status"] = output_data["date"].apply(
+        lambda date: (
+            "ready"
+            if current_time >= (
+                pd.Timestamp(date, tz="UTC")
+                + pd.Timedelta(days=1, hours=6)
+            )
+            else "partial"
+        )
+    )
 
     # Tanggal yang sedang diproses pada run ini.
     affected_dates = output_data[
