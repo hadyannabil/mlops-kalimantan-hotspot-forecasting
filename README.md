@@ -2,7 +2,7 @@
 
 Proyek MLOps untuk mengolah data hotspot NASA FIRMS dan menyiapkan dataset harian kabupaten/kota di Kalimantan sebagai dasar prediksi lonjakan jumlah deteksi hotspot dalam tiga hari berikutnya.
 
-Pipeline saat ini mencakup **data ingestion** dari NASA FIRMS Area API dan **preprocessing otomatis** hingga menghasilkan data aktivitas hotspot harian pada 56 kabupaten/kota di lima provinsi Kalimantan.
+Pipeline saat ini mencakup **data ingestion** dari NASA FIRMS Area API dan **preprocessing otomatis** hingga menghasilkan data aktivitas hotspot harian pada 56 kabupaten/kota di lima provinsi Kalimantan. Versi raw data dikelola dengan **DVC** agar perubahan dataset dapat dilacak dan dibandingkan.
 
 ## Data Source
 
@@ -21,10 +21,13 @@ Referensi batas administratif menggunakan **geoBoundaries ADM2 Indonesia** untuk
 ```text
 mlops-kalimantan-hotspot-forecasting/
 │
+├── .dvc/
+│   └── config                                   # konfigurasi DVC remote
 ├── data/
 │   ├── raw/
-│   │   ├── firms/
+│   │   ├── firms/                               # dilacak DVC, tidak masuk Git
 │   │   │   └── YYYY-MM-DD.csv
+│   │   ├── firms.dvc                            # penunjuk versi data (masuk Git)
 │   │   └── reference/
 │   │       └── geoBoundaries-IDN-ADM2.geojson   # downloaded locally
 │   └── processed/
@@ -38,11 +41,12 @@ mlops-kalimantan-hotspot-forecasting/
 ├── notebooks/
 ├── models/
 ├── tests/
+├── .dvcignore
 ├── requirements.txt
 └── README.md
 ```
 
-Repository menyertakan sampel raw data FIRMS. File snapshot ingestion, metadata, processed dataset, dan geoBoundaries dihasilkan atau diunduh secara lokal dan tidak disimpan di repository.
+Raw data FIRMS (partisi harian CSV, snapshot ingestion, dan metadata) dilacak dengan DVC dan tidak disimpan langsung di Git. Processed dataset dan geoBoundaries dihasilkan atau diunduh secara lokal dan tidak disimpan di repository.
 
 ## Setup
 
@@ -54,7 +58,7 @@ Install dependency:
 python -m pip install -r requirements.txt
 ```
 
-Library utama yang digunakan meliputi Pandas, Requests, GeoPandas, Shapely, NumPy, Scikit-learn, dan Matplotlib.
+Library utama yang digunakan meliputi Pandas, Requests, GeoPandas, Shapely, NumPy, Scikit-learn, Matplotlib, dan DVC untuk versioning data.
 
 ## Data Ingestion
 
@@ -153,6 +157,69 @@ python src/preprocess.py
 `ingest_data.py` dapat dijalankan kembali untuk mengambil data terbaru tanpa menghapus snapshot sebelumnya.
 
 `preprocess.py` memperbarui historical processed dataset berdasarkan kombinasi `date` dan `shapeID` sehingga pemrosesan ulang tidak menghasilkan baris duplikat.
+
+Ingestion dirancang untuk dijalankan berkala: setiap run mengambil ulang tiga hari terbaru, menangani gangguan request dengan retry, dan menyimpan snapshot bertimestamp sehingga data run sebelumnya tidak tertimpa. Pada tugas ini ingestion dijalankan manual untuk mensimulasikan kedatangan data baru. Contoh penjadwalan harian dengan cron (contoh konfigurasi, belum dijalankan pada tugas ini):
+
+```bash
+0 8 * * * cd /path/to/mlops-kalimantan-hotspot-forecasting && python src/ingest_data.py
+```
+
+`MAP_KEY` harus tersedia pada environment yang menjalankan cron. Setiap pertambahan data pada `data/raw/firms` dicatat sebagai versi baru dengan DVC (lihat bagian berikut).
+
+## Data Versioning dengan DVC
+
+Raw data FIRMS (`data/raw/firms/`) dilacak dengan **DVC**, bukan Git. Git hanya menyimpan file penunjuk `data/raw/firms.dvc` (hash md5, ukuran, jumlah file), sedangkan isi data disimpan di DVC remote sehingga repository tetap kecil.
+
+### Mengapa Versioning Data Penting
+
+Hasil model Random Forest ditentukan oleh kode, konfigurasi, dan data. Git hanya menjamin dua yang pertama; tanpa versioning data, kode yang sama pada dataset berbeda menghasilkan label, `threshold_spike`, model, dan metrik yang berbeda. Risikonya nyata di proyek ini: data NRT dapat direvisi atau digantikan produk SP, ingestion mengambil ulang tiga hari terbaru sehingga isi partisi dapat berubah antar run, dan dataset terus bertambah.
+
+Dengan DVC, setiap versi data punya hash md5 yang terikat ke commit Git. Model dapat dilatih ulang dengan data yang sama persis (`git checkout` lalu `dvc checkout` atau `dvc pull`), dan model kandidat dibandingkan dengan model aktif secara adil. Untuk audit, kapan dan apa yang berubah dapat ditelusuri lewat commit, tag, dan `dvc diff`, sedangkan perubahan tidak sengaja terdeteksi lewat `dvc status`.
+
+### Versi Data
+
+| Tag | Commit | File | Total baris CSV | md5 (awal) |
+|---|---|---|---|---|
+| data-v1 | 408d406 | 15 | 9208 | e913b246... |
+| data-v2 | ccd5615 | 21 | 14155 | c272709a... |
+
+data-v2 dibuat setelah ingestion dijalankan ulang secara manual (4.944 record baru, 9 sampai 11 Oktober 2026). `dvc diff data-v1 data-v2 --targets data/raw/firms` menunjukkan 6 file bertambah tanpa file lama yang berubah atau terhapus.
+
+### Menambah Versi Data Baru
+
+1. Jalankan ingestion ulang (`MAP_KEY` harus sudah di-export):
+```bash
+   python src/ingest_data.py
+```
+2. Cek perubahan data:
+```bash
+   dvc status data/raw/firms.dvc
+```
+3. Lacak versi baru dengan DVC:
+```bash
+   dvc add data/raw/firms
+```
+4. Commit file penunjuk dan beri tag versi:
+```bash
+   git add data/raw/firms.dvc data/raw/.gitignore
+   git commit -m "Update raw FIRMS data v3"
+   git tag data-v3
+```
+5. Kirim data ke remote dan kode ke GitHub:
+```bash
+   dvc push data/raw/firms.dvc
+   git push origin main data-v3
+```
+6. Bandingkan dengan versi sebelumnya:
+```bash
+   dvc diff data-v2 data-v3 --targets data/raw/firms
+```
+
+Jangan gunakan `git add` pada `data/raw/firms`; selalu gunakan `dvc add`.
+
+### Remote Storage
+
+Remote `storage` memakai direktori lokal `/workspaces/dvc-storage` di dalam Codespaces (`.dvc/config`). Keterbatasannya: belum merupakan penyimpanan eksternal, data hilang jika Codespace dihapus, dan tidak dapat diakses setelah clone (`dvc pull` gagal; data dibuat ulang dengan `ingest_data.py`). Untuk penggunaan nyata, ganti ke S3, GCS, atau MinIO dengan `dvc remote add` atau `dvc remote modify`.
 
 ## Next Steps
 
