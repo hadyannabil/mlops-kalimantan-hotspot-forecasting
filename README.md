@@ -222,8 +222,6 @@ git checkout HEAD -- data/raw/firms.dvc      # kembali ke penunjuk terbaru
 dvc checkout data/raw/firms.dvc
 ```
 
-Pada pengujian, data-v1 dipulihkan menjadi 15 file (9208 baris CSV) dan versi terbaru kembali menjadi 21 file (14155 baris CSV).
-
 ### Remote Storage
 
 Remote `storage` memakai direktori lokal `/workspaces/dvc-storage` di dalam Codespaces (konfigurasi pada `.dvc/config`). Keterbatasannya, remote ini belum merupakan penyimpanan eksternal, datanya hilang jika Codespace dihapus, dan tidak dapat diakses oleh orang yang meng-clone repository sehingga `dvc pull` gagal dan data dibuat ulang dengan menjalankan `ingest_data.py`. Untuk penggunaan nyata, remote dapat diganti ke S3, GCS, atau MinIO dengan `dvc remote add` atau `dvc remote modify`.
