@@ -158,13 +158,7 @@ python src/preprocess.py
 
 `preprocess.py` memperbarui historical processed dataset berdasarkan kombinasi `date` dan `shapeID` sehingga pemrosesan ulang tidak menghasilkan baris duplikat.
 
-Ingestion dirancang untuk dijalankan berkala: setiap run mengambil ulang tiga hari terbaru, menangani gangguan request dengan retry, dan menyimpan snapshot bertimestamp sehingga data run sebelumnya tidak tertimpa. Pada tugas ini ingestion dijalankan manual untuk mensimulasikan kedatangan data baru. Contoh penjadwalan harian dengan cron (contoh konfigurasi, belum dijalankan pada tugas ini):
-
-```bash
-0 8 * * * cd /path/to/mlops-kalimantan-hotspot-forecasting && python src/ingest_data.py
-```
-
-`MAP_KEY` harus tersedia pada environment yang menjalankan cron. Setiap pertambahan data pada `data/raw/firms` dicatat sebagai versi baru dengan DVC (lihat bagian berikut).
+Setiap pertambahan data pada `data/raw/firms` dicatat sebagai versi baru dengan DVC (lihat bagian Data Versioning dengan DVC).
 
 ## Data Versioning dengan DVC
 
@@ -172,7 +166,7 @@ Raw data FIRMS (`data/raw/firms/`) dilacak dengan **DVC**, bukan Git. Git hanya 
 
 ### Mengapa Versioning Data Penting
 
-Hasil model Random Forest ditentukan oleh kode, konfigurasi, dan data. Git hanya menjamin dua yang pertama; tanpa versioning data, kode yang sama pada dataset berbeda menghasilkan label, `threshold_spike`, model, dan metrik yang berbeda. Risikonya nyata di proyek ini: data NRT dapat direvisi atau digantikan produk SP, ingestion mengambil ulang tiga hari terbaru sehingga isi partisi dapat berubah antar run, dan dataset terus bertambah.
+Hasil model Random Forest ditentukan oleh kode, konfigurasi, dan data. Git hanya menjamin dua yang pertama. Tanpa versioning data, kode yang sama pada dataset berbeda menghasilkan label, `threshold_spike`, model, dan metrik yang berbeda. Risikonya nyata di proyek ini karena data NRT dapat direvisi atau digantikan produk SP, ingestion mengambil ulang tiga hari terbaru sehingga isi partisi dapat berubah antar run, dan dataset terus bertambah.
 
 Dengan DVC, setiap versi data punya hash md5 yang terikat ke commit Git. Model dapat dilatih ulang dengan data yang sama persis (`git checkout` lalu `dvc checkout` atau `dvc pull`), dan model kandidat dibandingkan dengan model aktif secara adil. Untuk audit, kapan dan apa yang berubah dapat ditelusuri lewat commit, tag, dan `dvc diff`, sedangkan perubahan tidak sengaja terdeteksi lewat `dvc status`.
 
@@ -187,39 +181,52 @@ data-v2 dibuat setelah ingestion dijalankan ulang secara manual (4.944 record ba
 
 ### Menambah Versi Data Baru
 
-1. Jalankan ingestion ulang (`MAP_KEY` harus sudah di-export):
+1. Jalankan ingestion ulang (`MAP_KEY` harus sudah di-export).
 ```bash
    python src/ingest_data.py
 ```
-2. Cek perubahan data:
+2. Cek perubahan data.
 ```bash
    dvc status data/raw/firms.dvc
 ```
-3. Lacak versi baru dengan DVC:
+3. Lacak versi baru dengan DVC.
 ```bash
    dvc add data/raw/firms
 ```
-4. Commit file penunjuk dan beri tag versi:
+4. Commit file penunjuk dan beri tag versi.
 ```bash
    git add data/raw/firms.dvc data/raw/.gitignore
    git commit -m "Update raw FIRMS data v3"
    git tag data-v3
 ```
-5. Kirim data ke remote dan kode ke GitHub:
+5. Kirim data ke remote dan kode ke GitHub.
 ```bash
    dvc push data/raw/firms.dvc
    git push origin main data-v3
 ```
-6. Bandingkan dengan versi sebelumnya:
+6. Bandingkan dengan versi sebelumnya.
 ```bash
    dvc diff data-v2 data-v3 --targets data/raw/firms
 ```
 
-Jangan gunakan `git add` pada `data/raw/firms`; selalu gunakan `dvc add`.
+Jangan gunakan `git add` pada `data/raw/firms`, selalu gunakan `dvc add`.
+
+### Memulihkan Versi Data Tertentu
+
+Versi lama dapat dipulihkan dengan mengambil file penunjuknya dari tag yang diinginkan lalu menjalankan `dvc checkout`.
+
+```bash
+git checkout data-v1 -- data/raw/firms.dvc   # ambil penunjuk versi lama
+dvc checkout data/raw/firms.dvc              # pulihkan datanya
+git checkout HEAD -- data/raw/firms.dvc      # kembali ke penunjuk terbaru
+dvc checkout data/raw/firms.dvc
+```
+
+Pada pengujian, data-v1 dipulihkan menjadi 15 file (9208 baris CSV) dan versi terbaru kembali menjadi 21 file (14155 baris CSV).
 
 ### Remote Storage
 
-Remote `storage` memakai direktori lokal `/workspaces/dvc-storage` di dalam Codespaces (`.dvc/config`). Keterbatasannya: belum merupakan penyimpanan eksternal, data hilang jika Codespace dihapus, dan tidak dapat diakses setelah clone (`dvc pull` gagal; data dibuat ulang dengan `ingest_data.py`). Untuk penggunaan nyata, ganti ke S3, GCS, atau MinIO dengan `dvc remote add` atau `dvc remote modify`.
+Remote `storage` memakai direktori lokal `/workspaces/dvc-storage` di dalam Codespaces (konfigurasi pada `.dvc/config`). Keterbatasannya, remote ini belum merupakan penyimpanan eksternal, datanya hilang jika Codespace dihapus, dan tidak dapat diakses oleh orang yang meng-clone repository sehingga `dvc pull` gagal dan data dibuat ulang dengan menjalankan `ingest_data.py`. Untuk penggunaan nyata, remote dapat diganti ke S3, GCS, atau MinIO dengan `dvc remote add` atau `dvc remote modify`.
 
 ## Next Steps
 
