@@ -228,6 +228,8 @@ __marimo__/
 # Raw datasets
 data/raw/*
 !data/raw/.gitkeep
+!data/raw/*.dvc
+!data/raw/.gitignore
 
 # Keep raw FIRMS sample
 !data/raw/firms/
