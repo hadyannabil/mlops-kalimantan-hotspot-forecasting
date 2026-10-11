@@ -163,71 +163,80 @@ Setiap pertambahan data pada `data/raw/firms` dicatat sebagai versi baru dengan 
 
 ## Data Versioning dengan DVC
 
-Raw data FIRMS (`data/raw/firms/`) dilacak dengan **DVC**, bukan Git. Git hanya menyimpan file penunjuk `data/raw/firms.dvc` (hash md5, ukuran, jumlah file), sedangkan isi data disimpan di DVC remote sehingga repository tetap kecil.
-
-Saat ini DVC melacak raw data FIRMS. Processed dataset dan geoBoundaries belum dilacak DVC dan dapat ditambahkan pada tahap berikutnya.
+Raw data FIRMS (`data/raw/firms/`) dilacak dengan **DVC**, bukan Git. Git hanya menyimpan file penunjuk `data/raw/firms.dvc` (hash md5, ukuran, jumlah file), sedangkan isi data disimpan di DVC remote sehingga repository tetap kecil. Processed dataset dan geoBoundaries belum dilacak DVC.
 
 ### Mengapa Versioning Data Penting
 
-Hasil model Random Forest ditentukan oleh kode, konfigurasi, dan data. Git hanya menjamin dua yang pertama. Tanpa versioning data, kode yang sama pada dataset berbeda menghasilkan label, `threshold_spike`, model, dan metrik yang berbeda. Risikonya nyata di proyek ini karena data NRT dapat direvisi atau digantikan produk SP, ingestion mengambil ulang tiga hari terbaru sehingga isi partisi dapat berubah antar run, dan dataset terus bertambah.
+Hasil model Random Forest ditentukan oleh kode, konfigurasi, dan data, sedangkan Git hanya menjamin dua yang pertama. Tanpa versioning data, kode yang sama pada dataset berbeda menghasilkan label, `threshold_spike`, model, dan metrik yang berbeda, dan risikonya nyata di proyek ini karena data NRT dapat direvisi atau digantikan produk SP, ingestion mengambil ulang tiga hari terbaru, dan dataset terus bertambah. Dengan DVC, setiap versi data punya hash md5 yang terikat ke commit Git, sehingga model dapat dilatih ulang dan dibandingkan dengan dataset yang sama persis selama datanya masih ada di cache atau remote. Untuk audit, perubahan ditelusuri lewat commit, tag, dan `dvc diff`, sedangkan perubahan tidak sengaja terdeteksi lewat `dvc status`.
 
-Dengan DVC, setiap versi data punya hash md5 yang terikat ke commit Git. Model dapat dilatih ulang dengan data yang sama persis (`git checkout` lalu `dvc checkout` atau `dvc pull`), dan model kandidat dibandingkan dengan model aktif secara adil. Untuk audit, kapan dan apa yang berubah dapat ditelusuri lewat commit, tag, dan `dvc diff`, sedangkan perubahan tidak sengaja terdeteksi lewat `dvc status`.
+### Setup DVC dan Versi Data
 
-### Versi Data
+1. Inisialisasi DVC dan commit konfigurasinya.
+```bash
+   dvc init
+   git commit -m "Initialize DVC"
+```
+2. Lepaskan sampel CSV yang sebelumnya dilacak Git. Pengecualian `!data/raw/*.dvc` dan `!data/raw/.gitignore` ditambahkan di `.gitignore` utama karena `data/raw/*` diabaikan, sehingga file penunjuk DVC dapat masuk ke Git.
+```bash
+   git rm -r --cached data/raw/firms
+```
+3. Lacak raw data, commit file penunjuknya, dan beri tag versi pertama.
+```bash
+   dvc add data/raw/firms
+   git add .gitignore data/raw/firms.dvc data/raw/.gitignore
+   git commit -m "Track raw FIRMS data v1 with DVC"
+   git tag data-v1
+```
+4. Konfigurasi remote, lalu kirim data ke remote.
+```bash
+   dvc remote add -d storage /workspaces/dvc-storage
+   git add .dvc/config
+   git commit -m "Configure DVC remote storage"
+   dvc push -T data/raw/firms.dvc
+```
 
-| Tag | Commit | File | Ukuran (byte) | Total baris CSV | md5 (awal) |
-|---|---|---|---|---|---|
-| data-v1 | 408d406 | 15 | 4.989.603 | 9.208 | e913b246... |
-| data-v2 | ccd5615 | 21 | 5.819.286 | 14.155 | c272709a... |
+| Tag | Commit | File | Total baris CSV (`wc -l`) | md5 (awal) |
+|---|---|---|---|---|
+| data-v1 | 408d406 | 15 | 9.208 | e913b246... |
+| data-v2 | ccd5615 | 21 | 14.155 | c272709a... |
 
-data-v2 dibuat setelah ingestion dijalankan ulang secara manual (4.944 record baru, 9 sampai 11 Oktober 2026). `dvc diff data-v1 data-v2 --targets data/raw/firms` menunjukkan 6 file bertambah tanpa file lama yang berubah atau terhapus.
+data-v2 dibuat setelah ingestion dijalankan ulang secara manual (4.944 record baru, 9 sampai 11 Oktober 2026), dan `dvc diff data-v1 data-v2 --targets data/raw/firms` menunjukkan 6 file bertambah tanpa file lama yang berubah atau terhapus.
 
-### Menambah Versi Data Baru
+### Menambah dan Memulihkan Versi Data
+
+Contoh berikut memakai `data-v3` untuk versi ketiga.
 
 1. Jalankan ingestion ulang (`MAP_KEY` harus sudah di-export).
-
 ```bash
    python src/ingest_data.py
 ```
-
 2. Cek perubahan data.
-
 ```bash
    dvc status data/raw/firms.dvc
 ```
-
 3. Lacak versi baru dengan DVC.
-
 ```bash
    dvc add data/raw/firms
 ```
-
 4. Commit file penunjuk dan beri tag versi.
-
 ```bash
    git add data/raw/firms.dvc data/raw/.gitignore
    git commit -m "Update raw FIRMS data v3"
    git tag data-v3
 ```
-
-5. Kirim data ke remote dan kode ke GitHub. Opsi `-T` memastikan data pada semua tag, termasuk versi lama, ikut tersimpan di remote sehingga dapat dipulihkan.
-
+5. Kirim data ke remote dan kode ke GitHub. Opsi `-T` memastikan data pada semua tag ikut tersimpan di remote.
 ```bash
    dvc push -T data/raw/firms.dvc
    git push origin main data-v3
 ```
-
 6. Bandingkan dengan versi sebelumnya.
-
 ```bash
    dvc diff data-v2 data-v3 --targets data/raw/firms
 ```
 
 Jangan gunakan `git add` pada `data/raw/firms`, selalu gunakan `dvc add`.
 
-### Memulihkan Versi Data Tertentu
-
-Versi lama dapat dipulihkan dengan mengambil file penunjuknya dari tag yang diinginkan lalu menjalankan `dvc checkout`.
+Untuk memulihkan versi lama, ambil file penunjuknya dari tag yang diinginkan lalu jalankan `dvc checkout`.
 
 ```bash
 git checkout data-v1 -- data/raw/firms.dvc   # ambil penunjuk versi lama
@@ -236,11 +245,11 @@ git checkout HEAD -- data/raw/firms.dvc      # kembali ke penunjuk terbaru
 dvc checkout data/raw/firms.dvc
 ```
 
-Pada pengujian, data-v1 pulih menjadi 15 file dan 9.208 baris, lalu kembali ke 21 file dan 14.155 baris setelah penunjuk dikembalikan ke HEAD, dengan `git status` bersih.
+Hasilnya dapat diperiksa dengan `wc -l data/raw/firms/*.csv` (9.208 baris untuk data-v1 dan 14.155 untuk data-v2).
 
 ### Remote Storage
 
-Remote `storage` memakai direktori lokal `/workspaces/dvc-storage` di dalam Codespaces (konfigurasi pada `.dvc/config`). Keterbatasannya, remote ini belum merupakan penyimpanan eksternal, datanya hilang jika Codespace dihapus, dan tidak dapat diakses oleh orang yang meng-clone repository sehingga `dvc pull` gagal. Data historis juga tidak dapat dibuat ulang persis dengan `ingest_data.py` karena script hanya mengambil tiga hari terbaru. Untuk penggunaan nyata, remote dapat diganti ke S3, GCS, atau MinIO dengan `dvc remote add` atau `dvc remote modify`.
+Remote `storage` berupa direktori lokal `/workspaces/dvc-storage` di dalam Codespaces (konfigurasi pada `.dvc/config`), jadi belum merupakan penyimpanan eksternal, datanya hilang jika Codespace dihapus, dan tidak dapat diakses orang yang meng-clone repository. Untuk penggunaan nyata, remote dapat diganti ke S3, GCS, atau MinIO dengan `dvc remote modify`.
 
 ## Next Steps
 
