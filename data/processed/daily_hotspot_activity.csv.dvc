@@ -1,0 +1,5 @@
+outs:
+- md5: 9b930beeb290dadbc04ffd316430128f
+  size: 2975696
+  hash: md5
+  path: daily_hotspot_activity.csv

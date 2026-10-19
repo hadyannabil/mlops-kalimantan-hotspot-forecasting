@@ -1,0 +1,5 @@
+outs:
+- md5: 438858bcbea47b707b2d60288bef793a
+  size: 4934707
+  hash: md5
+  path: hotspot_model_ready.csv

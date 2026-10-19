@@ -707,9 +707,14 @@ if __name__ == "__main__":
         joined_data
     )
 
+    all_dates = pd.to_datetime([
+    file.stem
+    for file in sorted(RAW_DIR.glob("????-??-??.csv"))
+    ])
+
     daily_data = create_daily_aggregation(
         kalimantan_data,
-        data["acq_date"].unique()
+        all_dates
     )
 
     save_processed_data(

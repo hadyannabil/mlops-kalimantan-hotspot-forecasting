@@ -234,6 +234,8 @@ data/raw/reference/
 # Processed datasets
 data/processed/*
 !data/processed/.gitkeep
+!data/processed/*.dvc
+!data/processed/.gitignore
 
 # Generated model artifacts
 models/*
