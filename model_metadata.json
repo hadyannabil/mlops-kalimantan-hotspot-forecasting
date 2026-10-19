@@ -1,0 +1,86 @@
+{
+  "project": "Kalimantan Hotspot Forecasting",
+  "task": "Binary SPIKE Classification",
+  "algorithm": "RandomForestClassifier",
+  "selected_run": "rf_01_conservative",
+  "selection_metric": "validation_average_precision",
+  "best_hyperparameters": {
+    "n_estimators": 100,
+    "max_depth": 8,
+    "min_samples_leaf": 5,
+    "class_weight": "balanced_subsample",
+    "random_state": 42,
+    "n_jobs": -1
+  },
+  "target": {
+    "definition": "SPIKE within t+1 to t+3",
+    "spike_threshold": 8.0,
+    "forecast_horizon_days": 3,
+    "decision_threshold": 0.5
+  },
+  "input_features": {
+    "categorical": [
+      "shapeID"
+    ],
+    "numerical": [
+      "hotspot_count",
+      "delta",
+      "lag_1",
+      "lag_2",
+      "lag_3",
+      "lag_7",
+      "rolling_mean_3",
+      "rolling_mean_7",
+      "rolling_max_7",
+      "rolling_std_7",
+      "month",
+      "day_of_year"
+    ]
+  },
+  "preprocessing": "OneHotEncoder(handle_unknown='ignore') for shapeID; numerical features passed through",
+  "validation_metrics": {
+    "average_precision": 0.6187735493292819,
+    "pr_auc_trapezoid": 0.6178580665650275,
+    "roc_auc": 0.8816275658206766,
+    "precision_at_0_5": 0.3170454545454545,
+    "recall_at_0_5": 0.9893617021276596,
+    "f1_at_0_5": 0.4802065404475043
+  },
+  "test_metrics": {
+    "average_precision": 0.7377111176534716,
+    "pr_auc_trapezoid": 0.7373911679125305,
+    "roc_auc": 0.7693681333450065,
+    "precision_at_0_5": 0.629746835443038,
+    "recall_at_0_5": 0.9916943521594684,
+    "f1_at_0_5": 0.7703225806451612
+  },
+  "test_confusion_matrix": {
+    "tn": 389,
+    "fp": 1053,
+    "fn": 15,
+    "tp": 1791
+  },
+  "dataset": {
+    "source": "NASA FIRMS VIIRS NOAA-20 SP/NRT",
+    "file": "data/processed/hotspot_model_ready.csv",
+    "sha256": "74073407e2df7509604f54816471cced5fb6f7e4f87c8e781556ecd78ec585bb",
+    "training_rows": 30016,
+    "validation_rows": 1568,
+    "test_rows": 3248,
+    "split_method": "Temporal split with 3-day purge"
+  },
+  "mlflow": {
+    "experiment": "lk06-kalimantan-hotspot-random-forest",
+    "run_id": "0c95822681c640168f647d6f3a8e623d",
+    "registered_model": "KalimantanHotspotSpikeRF",
+    "model_version": 1,
+    "model_uri": "models:/KalimantanHotspotSpikeRF/1",
+    "logged_model_id": "m-44f1aeff17814a589aaa3acbb23eefcb"
+  },
+  "deployment_status": "Registered candidate; not deployed",
+  "limitations": [
+    "Distribution shift between training and test periods",
+    "High false positive count on final test",
+    "MLflow tracking and artifacts currently stored locally"
+  ]
+}
