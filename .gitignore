@@ -247,3 +247,10 @@ models/*
 # Python cache
 __pycache__/
 *.py[cod]
+
+# MLflow local tracking
+mlflow.db
+mlflow.db-shm
+mlflow.db-wal
+mlartifacts/
+mlruns/
