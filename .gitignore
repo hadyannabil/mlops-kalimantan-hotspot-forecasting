@@ -225,18 +225,10 @@ __marimo__/
 .env
 .env.*
 
-# Raw datasets
-data/raw/*
-!data/raw/.gitkeep
-!data/raw/*.dvc
-!data/raw/.gitignore
+# Raw FIRMS data handled by data/raw/.gitignore
+# DVC metadata files remain tracked by Git
 
-# Keep raw FIRMS sample
-!data/raw/firms/
-data/raw/firms/*
-!data/raw/firms/2026-09-25.csv
-
-# Reference datasets are kept locally
+# Reference datasets
 data/raw/reference/
 
 # Processed datasets
