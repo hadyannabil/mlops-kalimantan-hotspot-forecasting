@@ -1,12 +1,12 @@
-pandas
-numpy
-scikit-learn
+pandas==3.0.5
+numpy==2.5.2
+scikit-learn==1.9.0
 matplotlib
 jupyter
 requests
 urllib3
 geopandas
 shapely
-dvcmlflow>=3,<4
+dvc>=3,<4
 mlflow==3.17.1
 PyYAML>=6,<7

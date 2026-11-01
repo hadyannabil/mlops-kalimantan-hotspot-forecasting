@@ -254,3 +254,4 @@ mlflow.db-shm
 mlflow.db-wal
 mlartifacts/
 mlruns/
+/docker_assets/

@@ -1,0 +1,7 @@
+**
+!Dockerfile
+!api/
+!api/app.py
+!docker_assets/
+!docker_assets/model/
+!docker_assets/model/**

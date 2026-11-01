@@ -380,3 +380,85 @@ bukan deployment operasional.
 ## License
 
 Proyek ini menggunakan **MIT License**.
+
+## Docker: Model Inference REST API
+
+Model Random Forest Production v1 telah dikemas sebagai REST API
+menggunakan Flask, Gunicorn, dan Docker.
+
+### Arsitektur
+
+MLflow Model Registry (Production v1)
+→ Export model
+→ Flask REST API
+→ Docker Image
+→ Docker Container
+
+API menggunakan artefak model yang telah diekspor ke
+`docker_assets/model/`, sehingga tidak memerlukan koneksi
+ke MLflow Registry ketika menjalankan prediksi.
+
+### Endpoint API
+
+| Method | Endpoint | Fungsi |
+|---|---|---|
+| GET | `/health` | Memeriksa status API |
+| POST | `/predict` | Memprediksi SPIKE atau NO SPIKE |
+
+Endpoint `/predict` menerima JSON dengan key `instances`
+berisi 1–100 observasi. Setiap observasi harus memiliki
+13 fitur sesuai MLflow Model Signature.
+
+### Persiapan
+
+Sebelum membangun Docker Image, ekspor model Version 1
+dari MLflow Registry ke folder `docker_assets/model/`.
+
+Folder tersebut tidak disimpan di GitHub dan harus tersedia
+secara lokal saat proses Docker Build. Ekspor memerlukan
+akses ke database dan artefak MLflow hasil LK-07.
+
+### Build Docker Image
+
+```bash
+docker build -t kalimantan-hotspot-api:v1 .
+```
+
+### Menjalankan Container
+
+```bash
+docker run -d \
+  --name kalimantan-hotspot-container \
+  -p 8001:8000 \
+  kalimantan-hotspot-api:v1
+```
+
+### Memeriksa API
+
+```bash
+curl http://localhost:8001/health
+```
+
+### Hasil Pengujian
+
+Pengujian Docker menggunakan dua skenario input sintetis
+dengan 13 fitur dan tanggal simulasi 1 Oktober 2026.
+
+| Skenario | Prediksi |
+|---|---|
+| Aktivitas rendah | 0 (NO SPIKE) |
+| Aktivitas meningkat | 1 (SPIKE) |
+
+Kedua prediksi berhasil dikembalikan melalui endpoint
+`POST /predict` dengan HTTP 200.
+
+Pengujian membuktikan bahwa container dapat melakukan
+inferensi tanpa proses Flask lokal dan tanpa koneksi
+runtime ke MLflow Registry.
+
+### Keterbatasan
+
+- Docker Image saat ini hanya tersedia secara lokal.
+- Artefak model harus disiapkan sebelum Docker Build.
+- REST API masih berupa prototipe untuk pengujian MLOps.
+- Belum diterapkan autentikasi, monitoring, dan deployment publik.
