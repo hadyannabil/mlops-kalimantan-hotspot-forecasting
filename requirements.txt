@@ -8,3 +8,5 @@ urllib3
 geopandas
 shapely
 dvcmlflow>=3,<4
+mlflow==3.17.1
+PyYAML>=6,<7

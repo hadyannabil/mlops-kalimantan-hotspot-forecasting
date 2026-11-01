@@ -1,0 +1,25 @@
+registry:
+  name: KalimantanHotspotSpikeRF
+  active_version: 1
+  active_stage: Production
+  model_uri: models:/KalimantanHotspotSpikeRF/Production
+  run_id: 0c95822681c640168f647d6f3a8e623d
+  model_source: models:/m-44f1aeff17814a589aaa3acbb23eefcb
+version_comparison:
+  selection_metric: validation_average_precision
+  version_1_ap: 0.6187735493292819
+  version_2_ap: 0.5763389380769195
+  selected_version: 1
+  reason: Highest validation Average Precision
+data_lineage:
+  dataset: data/processed/hotspot_model_ready.csv
+  dataset_sha256: 74073407e2df7509604f54816471cced5fb6f7e4f87c8e781556ecd78ec585bb
+  processed_dvc_file: data/processed/hotspot_model_ready.csv.dvc
+  processed_dvc_md5: 438858bcbea47b707b2d60288bef793a
+  raw_dvc_file: data/raw/firms.dvc
+  raw_dvc_md5: f9ac3c7d83bdc6fc840c4069a70f90b4.dir
+deployment_scope: LK-07 inference readiness simulation
+limitations:
+- Distribution shift between training and test periods
+- High false positive count on final test
+- MLflow tracking and artifacts currently stored locally

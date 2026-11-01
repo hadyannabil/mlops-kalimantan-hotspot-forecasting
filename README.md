@@ -47,7 +47,7 @@ mlops-kalimantan-hotspot-forecasting/
 └── README.md
 ```
 
-Raw data FIRMS (partisi harian CSV, snapshot ingestion, dan metadata) dilacak dengan DVC dan tidak disimpan langsung di Git. Processed dataset dan geoBoundaries dihasilkan atau diunduh secara lokal dan tidak disimpan di repository.
+Raw data FIRMS (partisi harian CSV, snapshot ingestion, dan metadata) dilacak dengan DVC dan tidak disimpan langsung di Git. Dataset pemodelan dikelola menggunakan DVC melalui data/processed/hotspot_model_ready.csv.dvc. File CSV dan geoBoundaries tidak disimpan langsung di Git.
 
 ## Setup
 
@@ -163,7 +163,7 @@ Setiap pertambahan data pada `data/raw/firms` dicatat sebagai versi baru dengan 
 
 ## Data Versioning dengan DVC
 
-Raw data FIRMS (`data/raw/firms/`) dilacak dengan **DVC**, bukan Git. Git hanya menyimpan file penunjuk `data/raw/firms.dvc` (hash md5, ukuran, jumlah file), sedangkan isi data disimpan di DVC remote sehingga repository tetap kecil. Processed dataset dan geoBoundaries belum dilacak DVC.
+Raw data FIRMS (`data/raw/firms/`) dilacak dengan **DVC**, bukan Git. Git hanya menyimpan file penunjuk `data/raw/firms.dvc` (hash md5, ukuran, jumlah file), sedangkan isi data disimpan di DVC remote sehingga repository tetap kecil. Dataset pemodelan hotspot_model_ready.csv sudah dilacak dengan DVC, sedangkan geoBoundaries tetap disimpan lokal.
 
 ### Mengapa Versioning Data Penting
 
@@ -251,16 +251,103 @@ Hasilnya dapat diperiksa dengan `wc -l data/raw/firms/*.csv` (9.208 baris untuk 
 
 Remote `storage` berupa direktori lokal `/workspaces/dvc-storage` di dalam Codespaces (konfigurasi pada `.dvc/config`), jadi belum merupakan penyimpanan eksternal, datanya hilang jika Codespace dihapus, dan tidak dapat diakses orang yang meng-clone repository. Untuk penggunaan nyata, remote dapat diganti ke S3, GCS, atau MinIO dengan `dvc remote modify`.
 
+
+## LK-07: Model Registry, Versioning, dan Kesiapan Inferensi
+
+### Model Registry
+
+Model Random Forest hasil eksperimen LK-06 dikelola menggunakan
+MLflow Model Registry dengan nama `KalimantanHotspotSpikeRF`.
+
+| Komponen | Version 1 | Version 2 |
+|---|---|---|
+| Model | rf_01_conservative | rf_02_moderate |
+| n_estimators | 100 | 200 |
+| max_depth | 8 | 14 |
+| min_samples_leaf | 5 | 3 |
+| Validation AP | 0.618774 | 0.576339 |
+| Stage akhir | Production | None |
+
+Version 2 menggunakan artefak model alternatif dari eksperimen
+LK-06, bukan hasil pelatihan ulang pada LK-07.
+
+### Pemilihan Model Production
+
+Version 1 dipilih karena memperoleh Average Precision tertinggi
+pada validation set yang sama. Pemilihan tidak menggunakan
+test set untuk menentukan versi terbaik.
+
+Transisi Version 1 telah dilakukan melalui:
+`None -> Staging -> Production`.
+
+Model Production:
+- Registered model: `KalimantanHotspotSpikeRF`
+- Active version: `1`
+- Source run: `0c95822681c640168f647d6f3a8e623d`
+- Model URI: `models:/KalimantanHotspotSpikeRF/Production`
+
+Stage digunakan untuk memenuhi rubrik LK-07. Pada MLflow modern,
+model stages sudah deprecated dan aliases direkomendasikan
+untuk pengembangan berikutnya.
+
+### Verifikasi Inferensi
+
+Pengujian dilakukan dengan memuat model langsung dari Registry
+melalui `mlflow.pyfunc.load_model()`, tanpa training ulang.
+
+Jalankan dari root repository pada lingkungan Codespaces
+yang memiliki database dan artefak MLflow:
+
+```bash
+python src/verify_production_inference.py
+```
+
+Hasil pengujian:
+- Input: satu observasi dataset pemodelan (13 fitur)
+- ShapeID: `22746128B97983454808676`
+- Prediction: `0` (NO SPIKE)
+- Status: `INFERENCE SUCCESS`
+
+Pengujian ini membuktikan kesiapan inferensi secara fungsional,
+bukan evaluasi generalisasi pada data baru yang belum pernah dilihat.
+
+### Metadata Model dan DVC
+
+File `deployment/production_model.yaml` mencatat:
+- Model dan versi Production yang aktif
+- Run ID dan sumber artefak MLflow
+- Perbandingan Average Precision v1 dan v2
+- SHA256 dataset pemodelan
+- Referensi DVC raw dan processed data
+
+Dataset model:
+`data/processed/hotspot_model_ready.csv`
+
+DVC pointer:
+`data/processed/hotspot_model_ready.csv.dvc`
+
+SHA256 dataset:
+`74073407e2df7509604f54816471cced5fb6f7e4f87c8e781556ecd78ec585bb`
+
+Referensi DVC tersebut adalah snapshot metadata yang dicatat
+pada LK-07, bukan bukti lengkap lineage transformasi raw-to-model.
+
+### Keterbatasan
+
+Database MLflow, artefak eksperimen, dan DVC remote masih
+berada di penyimpanan lokal Codespaces. Clone GitHub saja
+belum cukup untuk menjalankan inferensi tanpa artefak tersebut.
+
+Model juga memiliki false positive yang tinggi dan
+distribution shift pada evaluasi LK-06. Status Production
+di sini merupakan simulasi kesiapan inferensi praktikum,
+bukan deployment operasional.
+
 ## Next Steps
 
-Tahap pengembangan berikutnya mencakup:
-
-- feature engineering;
-- pembentukan label SPIKE / NO SPIKE;
-- temporal train-validation-test split;
-- training Random Forest;
-- daily inference;
-- monitoring dan evaluasi kebutuhan retraining.
+- Pengemasan model sebagai REST API menggunakan Docker.
+- Deployment layanan inferensi.
+- Monitoring dan evaluasi kebutuhan retraining.
 
 ## License
 
