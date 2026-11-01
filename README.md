@@ -311,6 +311,34 @@ Hasil pengujian:
 Pengujian ini membuktikan kesiapan inferensi secara fungsional,
 bukan evaluasi generalisasi pada data baru yang belum pernah dilihat.
 
+### Pengujian tambahan: input sintetis baru
+
+Selain pengujian satu observasi yang tersedia dalam dataset, kesiapan inferensi
+juga diuji menggunakan dua observasi sintetis pada tanggal simulasi
+**1 Oktober 2026**, masing-masing memiliki **13 fitur** yang sesuai dengan
+*model signature* MLflow. Nilai fitur lag dan statistik bergerak disusun dari
+skenario delapan hari jumlah hotspot, sedangkan tipe kolom disesuaikan dengan
+skema input model (`long` dan `double`).
+
+Jalankan pada Codespaces yang memiliki artefak dan database MLflow lokal:
+
+```bash
+python src/verify_new_input_inference.py
+```
+
+Hasil pengujian yang telah diperoleh:
+
+| Skenario sintetis | Prediksi | Kelas |
+|---|---:|---|
+| Aktivitas rendah | 0 | NO SPIKE |
+| Aktivitas meningkat | 1 | SPIKE |
+
+Hasil terminal: `Input shape: (2, 13)` dan `NEW INPUT INFERENCE SUCCESS`.
+Kedua prediksi dihasilkan oleh model **Version 1 (Production)** yang dimuat
+langsung dari MLflow Registry. Pengujian ini membuktikan keberhasilan pemrosesan
+input berbeda secara fungsional, **bukan** pengukuran akurasi pada data lapangan
+atau jaminan generalisasi model. Tanggal dan nilai input bersifat hipotetis.
+
 ### Metadata Model dan DVC
 
 File `deployment/production_model.yaml` mencatat:
