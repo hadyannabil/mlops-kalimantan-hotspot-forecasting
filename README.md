@@ -371,16 +371,6 @@ distribution shift pada evaluasi LK-06. Status Production
 di sini merupakan simulasi kesiapan inferensi praktikum,
 bukan deployment operasional.
 
-## Next Steps
-
-- Pengemasan model sebagai REST API menggunakan Docker.
-- Deployment layanan inferensi.
-- Monitoring dan evaluasi kebutuhan retraining.
-
-## License
-
-Proyek ini menggunakan **MIT License**.
-
 ## Docker: Model Inference REST API
 
 Model Random Forest Production v1 telah dikemas sebagai REST API
@@ -462,3 +452,13 @@ runtime ke MLflow Registry.
 - Artefak model harus disiapkan sebelum Docker Build.
 - REST API masih berupa prototipe untuk pengujian MLOps.
 - Belum diterapkan autentikasi, monitoring, dan deployment publik.
+
+## Next Steps
+
+- Optimasi ukuran Docker Image.
+- Deployment layanan inferensi.
+- Monitoring dan evaluasi kebutuhan retraining.
+
+## License
+
+Proyek ini menggunakan **MIT License**.
