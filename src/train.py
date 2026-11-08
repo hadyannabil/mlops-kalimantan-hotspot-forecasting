@@ -148,6 +148,7 @@ def main() -> None:
                 "model_data_sha256": data_sha,
                 "target_definition": metadata["target"],
                 "source": "NASA FIRMS VIIRS NOAA-20 SP/NRT",
+                "lk08_trigger_demo": "code_change",
             })
 
             start = time.perf_counter()
