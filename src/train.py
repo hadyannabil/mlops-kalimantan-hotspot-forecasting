@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -89,9 +90,15 @@ def main() -> None:
     y_val = val["spike"].astype(int)
     val_prevalence = float(y_val.mean())
 
-    # SQLite gives MLflow a database-backed tracking store for Model Registry.
+    # Use remote MLflow if configured; otherwise use local SQLite.
     db_path = ROOT / "mlflow.db"
-    mlflow.set_tracking_uri(f"sqlite:///{db_path.as_posix()}")
+
+    tracking_uri = os.environ.get(
+        "MLFLOW_TRACKING_URI",
+        f"sqlite:///{db_path.as_posix()}"
+    )
+
+    mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(EXPERIMENT)
 
     data_sha = hashlib.sha256(DATA_PATH.read_bytes()).hexdigest()
@@ -181,7 +188,7 @@ def main() -> None:
             mlflow.log_text(importances.to_csv(index=False), "validation/feature_importance.csv")
 
             # One logged sklearn pipeline includes its encoder and classifier.
-            mlflow.sklearn.log_model(
+            model_info = mlflow.sklearn.log_model(
                 sk_model=model,
                 name="model",
                 input_example=X_train.head(3),
@@ -196,6 +203,7 @@ def main() -> None:
             )
             results.append({
                 "run_id": run.info.run_id,
+                "model_id": model_info.model_id,
                 "name": name,
                 **metrics,
             })
@@ -210,12 +218,31 @@ def main() -> None:
     best = max(results, key=lambda item: item["val_average_precision"])
     client = MlflowClient()
     client.set_tag(best["run_id"], "selected_by_validation_ap", "true")
+    # Export the selected training result for LK-08 evaluation.
+    summary = {
+        "run_id": best["run_id"],
+        "run_name": best["name"],
+        "model_id": best["model_id"],
+        "validation_ap": best["val_average_precision"],
+        "baseline_ap": best["baseline_val_average_precision"],
+        "data_sha256": data_sha,
+        "git_commit": revision,
+    }
+
+    summary_path = ROOT / "outputs" / "lk08_training_summary.json"
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path.write_text(
+        json.dumps(summary, indent=2),
+        encoding="utf-8",
+    )
+
+    print("LK-08 training summary:", summary_path)
     print("\n=== BEST ON VALIDATION (NOT FINAL TEST) ===")
     print("Run:", best["name"])
     print("Run ID:", best["run_id"])
     print("Validation average precision:", round(best["val_average_precision"], 4))
     print("Test has NOT been evaluated; evaluate only the selected model later.")
-    print("MLflow database:", db_path)
+    print("MLflow tracking:", tracking_uri)
 
 
 if __name__ == "__main__":

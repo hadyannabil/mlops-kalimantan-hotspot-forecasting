@@ -2,3 +2,5 @@
     remote = storage
 ['remote "storage"']
     url = /workspaces/dvc-storage
+['remote "dagshub"']
+    url = https://dagshub.com/hadyannabil/mlops-kalimantan-hotspot-forecasting.dvc

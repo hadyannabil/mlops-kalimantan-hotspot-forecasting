@@ -1,0 +1,162 @@
+name: MLOps Pipeline Automation
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  testing:
+    name: Automated Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Configure DVC authentication
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          test -n "$DAGSHUB_TOKEN" || exit 1
+          dvc remote modify --local dagshub auth basic
+          dvc remote modify --local dagshub user hadyannabil
+          dvc remote modify --local dagshub password "$DAGSHUB_TOKEN"
+
+      - name: Pull dataset from DagsHub
+        run: |
+          dvc pull -r dagshub \
+            data/processed/hotspot_model_ready.csv.dvc \
+            data/processed/model_data_metadata.json.dvc
+
+      - name: Run automated tests
+        run: python -m pytest tests/ -v
+
+
+  training:
+    name: Automated Training
+    needs: testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Configure DVC authentication
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          test -n "$DAGSHUB_TOKEN" || exit 1
+          dvc remote modify --local dagshub auth basic
+          dvc remote modify --local dagshub user hadyannabil
+          dvc remote modify --local dagshub password "$DAGSHUB_TOKEN"
+
+      - name: Pull training dataset
+        run: |
+          dvc pull -r dagshub \
+            data/processed/hotspot_model_ready.csv.dvc \
+            data/processed/model_data_metadata.json.dvc
+
+      - name: Train models with MLflow
+        env:
+          MLFLOW_TRACKING_URI: https://dagshub.com/hadyannabil/mlops-kalimantan-hotspot-forecasting.mlflow
+          MLFLOW_TRACKING_USERNAME: hadyannabil
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+          MLFLOW_ALLOW_PICKLE_DESERIALIZATION: "true"
+        run: python src/train.py
+
+      - name: Upload training summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: lk08-training-summary
+          path: outputs/lk08_training_summary.json
+          if-no-files-found: error
+          retention-days: 7
+
+  evaluation_registry:
+    name: Model Evaluation and Registry
+    needs: training
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Configure DVC authentication
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          test -n "$DAGSHUB_TOKEN" || exit 1
+          dvc remote modify --local dagshub auth basic
+          dvc remote modify --local dagshub user hadyannabil
+          dvc remote modify --local dagshub password "$DAGSHUB_TOKEN"
+
+      - name: Pull validation dataset
+        run: |
+          dvc pull -r dagshub \
+            data/processed/hotspot_model_ready.csv.dvc \
+            data/processed/model_data_metadata.json.dvc
+
+      - name: Download training summary
+        uses: actions/download-artifact@v4
+        with:
+          name: lk08-training-summary
+          path: outputs
+
+      - name: Evaluate model performance
+        env:
+          MLFLOW_TRACKING_URI: https://dagshub.com/hadyannabil/mlops-kalimantan-hotspot-forecasting.mlflow
+          MLFLOW_TRACKING_USERNAME: hadyannabil
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: python src/evaluate_candidate.py
+
+      - name: Upload validation result
+        uses: actions/upload-artifact@v4
+        with:
+          name: lk08-validation-result
+          path: outputs/lk08_validation_result.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Register validated model to Staging
+        env:
+          MLFLOW_TRACKING_URI: https://dagshub.com/hadyannabil/mlops-kalimantan-hotspot-forecasting.mlflow
+          MLFLOW_TRACKING_USERNAME: hadyannabil
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: python src/register_candidate.py

@@ -10,3 +10,4 @@ shapely
 dvc>=3,<4
 mlflow==3.17.1
 PyYAML>=6,<7
+pytest==9.2.0
