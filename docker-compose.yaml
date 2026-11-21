@@ -1,0 +1,103 @@
+name: kalimantan-hotspot-lk09
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - hotspot-network
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    cpus: "0.4"
+    mem_limit: 512m
+    restart: unless-stopped
+
+  mlflow-server:
+    build:
+      context: ./deployment/mlflow
+      dockerfile: Dockerfile
+    image: kalimantan-hotspot-mlflow:lk09
+    env_file:
+      - .env
+    command:
+      - /bin/sh
+      - -c
+      - >
+        exec mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --workers 1
+        --allowed-hosts "mlflow-server,mlflow-server:5000,localhost,localhost:5000,127.0.0.1,127.0.0.1:5000"
+        --backend-store-uri
+        "postgresql+psycopg2://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}"
+        --serve-artifacts
+        --artifacts-destination /mlflow/artifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    networks:
+      - hotspot-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=5)"
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 45s
+    cpus: "0.6"
+    mem_limit: 3g
+    restart: unless-stopped
+
+  api-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kalimantan-hotspot-api:v1
+    environment:
+      MODEL_PATH: /app/docker_assets/model
+      MLFLOW_TRACKING_URI: http://mlflow-server:5000
+    ports:
+      - "8001:8000"
+    networks:
+      - hotspot-network
+    depends_on:
+      mlflow-server:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    cpus: "1.0"
+    mem_limit: 2g
+    restart: unless-stopped
+
+networks:
+  hotspot-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mlflow_artifacts:

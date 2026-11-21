@@ -1,464 +1,226 @@
 # Kalimantan Hotspot Forecasting
 
-Proyek MLOps untuk mengolah data hotspot NASA FIRMS dan menyiapkan dataset harian kabupaten/kota di Kalimantan sebagai dasar prediksi lonjakan jumlah deteksi hotspot dalam tiga hari berikutnya.
+Proyek **MLOps** untuk memprediksi potensi **lonjakan aktivitas hotspot (SPIKE / NO SPIKE)** pada 56 kabupaten/kota di Kalimantan dalam horizon **1–3 hari ke depan**. Model yang digunakan adalah **Random Forest**, dengan **Persistence** sebagai baseline pembanding.
 
-Pipeline saat ini mencakup **data ingestion** dari NASA FIRMS Area API dan **preprocessing otomatis** hingga menghasilkan data aktivitas hotspot harian pada 56 kabupaten/kota di lima provinsi Kalimantan. Versi raw data dikelola dengan **DVC** agar perubahan dataset dapat dilacak dan dibandingkan.
+Proyek mencakup pengambilan dan pengolahan data NASA FIRMS, eksperimen MLflow, versioning DVC, otomatisasi GitHub Actions, serta layanan inferensi yang dijalankan bersama MLflow dan PostgreSQL melalui Docker Compose.
 
 ## Data Source
 
-Sumber data utama:
-
-- **NASA FIRMS Area API**
-- Produk: **VIIRS NOAA-20 Near Real-Time (NRT)**
-- Bounding box: `108,-5,120,8`
-- Rentang pengambilan: 3 hari terbaru
-- Format: CSV
-
-Referensi batas administratif menggunakan **geoBoundaries ADM2 Indonesia** untuk memetakan koordinat hotspot ke kabupaten/kota.
+- **Sumber:** NASA FIRMS Area API, VIIRS NOAA-20; ingestion terkini menggunakan data *Near Real-Time* (NRT).
+- **Wilayah:** 56 kabupaten/kota di lima provinsi Kalimantan; bounding box `108,-5,120,8`.
+- **Pengambilan data:** tiga hari terbaru, format CSV. Dataset pemodelan berasal dari snapshot historis SP/NRT yang terdokumentasi.
+- **Referensi administratif:** geoBoundaries ADM2 Indonesia untuk pemetaan koordinat ke kabupaten/kota.
 
 ## Project Structure
 
 ```text
 mlops-kalimantan-hotspot-forecasting/
-│
-├── .dvc/
-│   └── config                                   # konfigurasi DVC remote
-├── data/
-│   ├── raw/
-│   │   ├── firms/                               # dilacak DVC, tidak masuk Git
-│   │   │   └── YYYY-MM-DD.csv
-│   │   ├── firms.dvc                            # penunjuk versi data (masuk Git)
-│   │   ├── .gitignore                           # dibuat DVC, memuat entri firms/
-│   │   └── reference/
-│   │       └── geoBoundaries-IDN-ADM2.geojson   # downloaded locally
-│   └── processed/
-│       └── daily_hotspot_activity.csv           # generated locally
-│
-├── src/
-│   ├── ingest_data.py
-│   ├── preprocess.py
-│   └── initial_experiment.py
-│
-├── notebooks/
-├── models/
-├── tests/
-├── .dvcignore
+├── .github/workflows/mlops-automation.yaml   # CI/CD LK08
+├── .dvc/config                                # konfigurasi remote DVC
+├── api/app.py                                 # REST API inferensi & tracking
+├── data/raw/                                  # data FIRMS dan referensi wilayah
+├── data/processed/                            # data hasil preprocessing & DVC
+├── docker_assets/model.dvc                    # pointer model Production v1
+├── docker_assets/model/                       # artefak model (diambil via DVC)
+├── deployment/
+│   ├── mlflow/Dockerfile                      # image MLflow Server
+│   └── production_model.yaml                 # metadata model terpilih
+├── src/                                       # ingestion, preprocessing, training, evaluasi
+├── tests/                                     # pengujian otomatis
+├── Dockerfile                                 # image Flask API
+├── docker-compose.yaml                       # orkestrasi tiga layanan LK09
+├── .env.example                              # template environment
 ├── requirements.txt
 └── README.md
 ```
 
-Raw data FIRMS (partisi harian CSV, snapshot ingestion, dan metadata) dilacak dengan DVC dan tidak disimpan langsung di Git. Dataset pemodelan dikelola menggunakan DVC melalui data/processed/hotspot_model_ready.csv.dvc. File CSV dan geoBoundaries tidak disimpan langsung di Git.
+Data dan artefak model berukuran besar dikelola dengan **DVC**, bukan disimpan langsung di Git. File `.env` berisi konfigurasi lokal dan tidak di-commit.
 
 ## Setup
 
-Proyek dikembangkan menggunakan Python 3.12 dan GitHub Codespaces.
-
-Install dependency:
+Lingkungan pengembangan menggunakan **Python 3.12** dan GitHub Codespaces. Untuk pipeline Python dan DVC:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-Library utama yang digunakan meliputi Pandas, Requests, GeoPandas, Shapely, NumPy, Scikit-learn, Matplotlib, dan DVC untuk versioning data.
+Untuk menjalankan layanan LK09 diperlukan **Docker Engine** dan **Docker Compose**. Panduan menjalankan seluruh sistem tersedia pada bagian [LK09](#lk-09-orkestrasi-layanan-ml-dengan-docker-compose).
 
-## Data Ingestion
+## Data Pipeline — LK04
 
-Data ingestion dijalankan melalui:
+### Data Ingestion
 
-```text
-src/ingest_data.py
-```
-
-Sebelum menjalankan script, siapkan NASA FIRMS `MAP_KEY` sebagai environment variable:
+Siapkan NASA FIRMS `MAP_KEY` sebagai environment variable (misalnya melalui *Codespaces Secret*), kemudian jalankan:
 
 ```bash
 export MAP_KEY="YOUR_MAP_KEY"
-```
-
-Untuk GitHub Codespaces, `MAP_KEY` dapat disimpan sebagai **Codespaces Secret** agar tidak ditulis langsung pada source code atau repository.
-
-Jalankan ingestion:
-
-```bash
 python src/ingest_data.py
 ```
 
-Script akan:
+Skrip mengambil data VIIRS NOAA-20 NRT untuk tiga hari terbaru, memvalidasi respons, melakukan retry bila diperlukan, dan menyimpan data harian beserta snapshot serta metadata ingestion. Snapshot sebelumnya tidak ditimpa.
 
-- mengambil data VIIRS NOAA-20 NRT untuk tiga hari terbaru;
-- memvalidasi respons dan struktur data;
-- melakukan retry ketika terjadi gangguan request;
-- menyimpan raw data berdasarkan tanggal;
-- membuat snapshot untuk setiap ingestion run;
-- menyimpan metadata ingestion.
+### Preprocessing
 
-Snapshot menggunakan timestamp sehingga data dari run sebelumnya tidak ditimpa.
-
-## Preprocessing
-
-Preprocessing menggunakan **geoBoundaries ADM2 Indonesia** sebagai referensi batas administratif.
-
-File referensi tidak disimpan di repository karena ukurannya besar. Jika belum tersedia, jalankan:
+File geoBoundaries tidak disimpan di Git. Jika belum tersedia, siapkan referensinya:
 
 ```bash
 mkdir -p data/raw/reference
-
 wget -O data/raw/reference/geoBoundaries-IDN-ADM2.geojson \
-"https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/IDN/ADM2/geoBoundaries-IDN-ADM2.geojson"
-```
-
-Kemudian jalankan:
-
-```bash
+  "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/IDN/ADM2/geoBoundaries-IDN-ADM2.geojson"
 python src/preprocess.py
 ```
 
-Tahapan preprocessing meliputi:
+Preprocessing meliputi validasi data, penghapusan duplikat, *spatial join*, agregasi hotspot per kabupaten/kota dan tanggal, serta pembentukan *complete daily grid*. Hasil utama disimpan di `data/processed/daily_hotspot_activity.csv`; wilayah tanpa deteksi pada tanggal valid memiliki `hotspot_count = 0`.
 
-- validasi struktur dan tipe data;
-- validasi tanggal, waktu, dan koordinat;
-- penghapusan exact duplicate;
-- pengecekan missing value;
-- spatial join dengan geoBoundaries ADM2;
-- penyaringan 56 kabupaten/kota di Kalimantan;
-- agregasi hotspot per wilayah dan tanggal;
-- pembentukan complete daily grid untuk seluruh wilayah studi.
+Untuk memperbarui data, jalankan `ingest_data.py` lalu `preprocess.py` secara berurutan. Perubahan dataset selanjutnya dicatat melalui DVC.
 
-Hasil preprocessing disimpan pada:
+## Data Versioning dengan DVC — LK05
 
-```text
-data/processed/daily_hotspot_activity.csv
-```
+DVC digunakan agar perubahan data dapat ditelusuri bersama versi kode. Pada repository ini, data mentah dilacak melalui `data/raw/firms.dvc`, sedangkan dataset pemodelan menggunakan `data/processed/hotspot_model_ready.csv.dvc`.
 
-Dataset memiliki kolom:
+### Menambahkan Versi Data
 
-```text
-date
-shapeID
-kabupaten_kota
-province
-hotspot_count
-mean_frp
-max_frp
-total_frp
-status
-```
-
-Wilayah tanpa deteksi pada tanggal yang valid tetap disimpan dengan `hotspot_count = 0`.
-
-## Running the Pipeline
-
-Urutan menjalankan pipeline:
+Setelah ingestion menghasilkan data baru, jalankan dari root repository:
 
 ```bash
 python src/ingest_data.py
-python src/preprocess.py
+dvc status data/raw/firms.dvc
+dvc add data/raw/firms
+git add data/raw/firms.dvc data/raw/.gitignore
+git commit -m "Update raw FIRMS data"
+dvc push -r dagshub data/raw/firms.dvc
 ```
 
-`ingest_data.py` dapat dijalankan kembali untuk mengambil data terbaru tanpa menghapus snapshot sebelumnya.
+Perintah `dvc push` di atas mengirim **versi baru** ke DagsHub jika akun memiliki akses. Bila menggunakan remote lokal historis, ganti `-r dagshub` dengan `-r storage`. File CSV tidak dimasukkan langsung dengan `git add`; yang dicatat oleh Git adalah pointer `.dvc`. Setelah meninjau perubahan, push commit ke branch yang sesuai. Perubahan yang masuk ke `main` akan memicu workflow LK08.
 
-`preprocess.py` memperbarui historical processed dataset berdasarkan kombinasi `date` dan `shapeID` sehingga pemrosesan ulang tidak menghasilkan baris duplikat.
+Remote yang tersedia:
 
-Setiap pertambahan data pada `data/raw/firms` dicatat sebagai versi baru dengan DVC (lihat bagian Data Versioning dengan DVC).
+| Remote | Kegunaan |
+|---|---|
+| `storage` (default) | Direktori lokal `/workspaces/dvc-storage` pada Codespaces; tidak otomatis tersedia di clone baru. |
+| `dagshub` | Remote eksternal untuk dataset yang telah disinkronkan dan artefak model; mungkin memerlukan access token. |
 
-## Data Versioning dengan DVC
-
-Raw data FIRMS (`data/raw/firms/`) dilacak dengan **DVC**, bukan Git. Git hanya menyimpan file penunjuk `data/raw/firms.dvc` (hash md5, ukuran, jumlah file), sedangkan isi data disimpan di DVC remote sehingga repository tetap kecil. Dataset pemodelan hotspot_model_ready.csv sudah dilacak dengan DVC, sedangkan geoBoundaries tetap disimpan lokal.
-
-### Mengapa Versioning Data Penting
-
-Hasil model Random Forest ditentukan oleh kode, konfigurasi, dan data, sedangkan Git hanya menjamin dua yang pertama. Tanpa versioning data, kode yang sama pada dataset berbeda menghasilkan label, `threshold_spike`, model, dan metrik yang berbeda, dan risikonya nyata di proyek ini karena data NRT dapat direvisi atau digantikan produk SP, ingestion mengambil ulang tiga hari terbaru, dan dataset terus bertambah. Dengan DVC, setiap versi data punya hash md5 yang terikat ke commit Git, sehingga model dapat dilatih ulang dan dibandingkan dengan dataset yang sama persis selama datanya masih ada di cache atau remote. Untuk audit, perubahan ditelusuri lewat commit, tag, dan `dvc diff`, sedangkan perubahan tidak sengaja terdeteksi lewat `dvc status`.
-
-### Setup DVC dan Versi Data
-
-1. Inisialisasi DVC dan commit konfigurasinya.
-```bash
-   dvc init
-   git commit -m "Initialize DVC"
-```
-2. Lepaskan sampel CSV yang sebelumnya dilacak Git. Pengecualian `!data/raw/*.dvc` dan `!data/raw/.gitignore` ditambahkan di `.gitignore` utama karena `data/raw/*` diabaikan, sehingga file penunjuk DVC dapat masuk ke Git.
-```bash
-   git rm -r --cached data/raw/firms
-```
-3. Lacak raw data, commit file penunjuknya, dan beri tag versi pertama.
-```bash
-   dvc add data/raw/firms
-   git add .gitignore data/raw/firms.dvc data/raw/.gitignore
-   git commit -m "Track raw FIRMS data v1 with DVC"
-   git tag data-v1
-```
-4. Konfigurasi remote, lalu kirim data ke remote.
-```bash
-   dvc remote add -d storage /workspaces/dvc-storage
-   git add .dvc/config
-   git commit -m "Configure DVC remote storage"
-   dvc push -T data/raw/firms.dvc
-```
-
-| Tag | Commit | File | Total baris CSV (`wc -l`) | md5 (awal) |
-|---|---|---|---|---|
-| data-v1 | 408d406 | 15 | 9.208 | e913b246... |
-| data-v2 | ccd5615 | 21 | 14.155 | c272709a... |
-
-data-v2 dibuat setelah ingestion dijalankan ulang secara manual (4.944 record baru, 9 sampai 11 Oktober 2026), dan `dvc diff data-v1 data-v2 --targets data/raw/firms` menunjukkan 6 file bertambah tanpa file lama yang berubah atau terhapus.
-
-### Menambah dan Memulihkan Versi Data
-
-Contoh berikut memakai `data-v3` untuk versi ketiga.
-
-1. Jalankan ingestion ulang (`MAP_KEY` harus sudah di-export).
-```bash
-   python src/ingest_data.py
-```
-2. Cek perubahan data.
-```bash
-   dvc status data/raw/firms.dvc
-```
-3. Lacak versi baru dengan DVC.
-```bash
-   dvc add data/raw/firms
-```
-4. Commit file penunjuk dan beri tag versi.
-```bash
-   git add data/raw/firms.dvc data/raw/.gitignore
-   git commit -m "Update raw FIRMS data v3"
-   git tag data-v3
-```
-5. Kirim data ke remote dan kode ke GitHub. Opsi `-T` memastikan data pada semua tag ikut tersimpan di remote.
-```bash
-   dvc push -T data/raw/firms.dvc
-   git push origin main data-v3
-```
-6. Bandingkan dengan versi sebelumnya.
-```bash
-   dvc diff data-v2 data-v3 --targets data/raw/firms
-```
-
-Jangan gunakan `git add` pada `data/raw/firms`, selalu gunakan `dvc add`.
-
-Untuk memulihkan versi lama, ambil file penunjuknya dari tag yang diinginkan lalu jalankan `dvc checkout`.
+Contoh mengambil artefak model Production untuk Docker:
 
 ```bash
-git checkout data-v1 -- data/raw/firms.dvc   # ambil penunjuk versi lama
-dvc checkout data/raw/firms.dvc              # pulihkan datanya
-git checkout HEAD -- data/raw/firms.dvc      # kembali ke penunjuk terbaru
-dvc checkout data/raw/firms.dvc
+dvc pull -r dagshub docker_assets/model.dvc
 ```
 
-Hasilnya dapat diperiksa dengan `wc -l data/raw/firms/*.csv` (9.208 baris untuk data-v1 dan 14.155 untuk data-v2).
-
-### Remote Storage
-
-Remote `storage` berupa direktori lokal `/workspaces/dvc-storage` di dalam Codespaces (konfigurasi pada `.dvc/config`), jadi belum merupakan penyimpanan eksternal, datanya hilang jika Codespace dihapus, dan tidak dapat diakses orang yang meng-clone repository. Untuk penggunaan nyata, remote dapat diganti ke S3, GCS, atau MinIO dengan `dvc remote modify`.
-
+Versioning awal proyek juga menggunakan tag `data-v1` dan `data-v2`. Riwayat lengkap versi dapat ditelusuri melalui Git dan DVC tanpa perlu mengulang proses `dvc init`.
 
 ## LK-07: Model Registry, Versioning, dan Kesiapan Inferensi
 
-### Model Registry
-
-Model Random Forest hasil eksperimen LK-06 dikelola menggunakan
-MLflow Model Registry dengan nama `KalimantanHotspotSpikeRF`.
+Model Random Forest dari eksperimen LK06 dicatat pada **MLflow Model Registry** dengan nama `KalimantanHotspotSpikeRF`.
 
 | Komponen | Version 1 | Version 2 |
 |---|---|---|
-| Model | rf_01_conservative | rf_02_moderate |
-| n_estimators | 100 | 200 |
-| max_depth | 8 | 14 |
-| min_samples_leaf | 5 | 3 |
-| Validation AP | 0.618774 | 0.576339 |
-| Stage akhir | Production | None |
+| Kandidat | `rf_01_conservative` | `rf_02_moderate` |
+| Validation Average Precision | **0,618774** | 0,576339 |
+| Status pada LK07 | **Production** | None |
 
-Version 2 menggunakan artefak model alternatif dari eksperimen
-LK-06, bukan hasil pelatihan ulang pada LK-07.
+**Version 1 dipilih untuk inferensi** karena memperoleh Average Precision tertinggi pada validation set, bukan karena hasil test set. Versi ini telah melalui transisi `None → Staging → Production` pada LK07, dengan *run ID* `0c95822681c640168f647d6f3a8e623d`.
 
-### Pemilihan Model Production
-
-Version 1 dipilih karena memperoleh Average Precision tertinggi
-pada validation set yang sama. Pemilihan tidak menggunakan
-test set untuk menentukan versi terbaik.
-
-Transisi Version 1 telah dilakukan melalui:
-`None -> Staging -> Production`.
-
-Model Production:
-- Registered model: `KalimantanHotspotSpikeRF`
-- Active version: `1`
-- Source run: `0c95822681c640168f647d6f3a8e623d`
-- Model URI: `models:/KalimantanHotspotSpikeRF/Production`
-
-Stage digunakan untuk memenuhi rubrik LK-07. Pada MLflow modern,
-model stages sudah deprecated dan aliases direkomendasikan
-untuk pengembangan berikutnya.
-
-### Verifikasi Inferensi
-
-Pengujian dilakukan dengan memuat model langsung dari Registry
-melalui `mlflow.pyfunc.load_model()`, tanpa training ulang.
-
-Jalankan dari root repository pada lingkungan Codespaces
-yang memiliki database dan artefak MLflow:
-
-```bash
-python src/verify_production_inference.py
-```
-
-Hasil pengujian:
-- Input: satu observasi dataset pemodelan (13 fitur)
-- ShapeID: `22746128B97983454808676`
-- Prediction: `0` (NO SPIKE)
-- Status: `INFERENCE SUCCESS`
-
-Pengujian ini membuktikan kesiapan inferensi secara fungsional,
-bukan evaluasi generalisasi pada data baru yang belum pernah dilihat.
-
-### Pengujian tambahan: input sintetis baru
-
-Selain pengujian satu observasi yang tersedia dalam dataset, kesiapan inferensi
-juga diuji menggunakan dua observasi sintetis pada tanggal simulasi
-**1 Oktober 2026**, masing-masing memiliki **13 fitur** yang sesuai dengan
-*model signature* MLflow. Nilai fitur lag dan statistik bergerak disusun dari
-skenario delapan hari jumlah hotspot, sedangkan tipe kolom disesuaikan dengan
-skema input model (`long` dan `double`).
-
-Jalankan pada Codespaces yang memiliki artefak dan database MLflow lokal:
-
-```bash
-python src/verify_new_input_inference.py
-```
-
-Hasil pengujian yang telah diperoleh:
-
-| Skenario sintetis | Prediksi | Kelas |
-|---|---:|---|
-| Aktivitas rendah | 0 | NO SPIKE |
-| Aktivitas meningkat | 1 | SPIKE |
-
-Hasil terminal: `Input shape: (2, 13)` dan `NEW INPUT INFERENCE SUCCESS`.
-Kedua prediksi dihasilkan oleh model **Version 1 (Production)** yang dimuat
-langsung dari MLflow Registry. Pengujian ini membuktikan keberhasilan pemrosesan
-input berbeda secara fungsional, **bukan** pengukuran akurasi pada data lapangan
-atau jaminan generalisasi model. Tanggal dan nilai input bersifat hipotetis.
-
-### Metadata Model dan DVC
-
-File `deployment/production_model.yaml` mencatat:
-- Model dan versi Production yang aktif
-- Run ID dan sumber artefak MLflow
-- Perbandingan Average Precision v1 dan v2
-- SHA256 dataset pemodelan
-- Referensi DVC raw dan processed data
-
-Dataset model:
-`data/processed/hotspot_model_ready.csv`
-
-DVC pointer:
-`data/processed/hotspot_model_ready.csv.dvc`
-
-SHA256 dataset:
-`74073407e2df7509604f54816471cced5fb6f7e4f87c8e781556ecd78ec585bb`
-
-Referensi DVC tersebut adalah snapshot metadata yang dicatat
-pada LK-07, bukan bukti lengkap lineage transformasi raw-to-model.
-
-### Keterbatasan
-
-Database MLflow, artefak eksperimen, dan DVC remote masih
-berada di penyimpanan lokal Codespaces. Clone GitHub saja
-belum cukup untuk menjalankan inferensi tanpa artefak tersebut.
-
-Model juga memiliki false positive yang tinggi dan
-distribution shift pada evaluasi LK-06. Status Production
-di sini merupakan simulasi kesiapan inferensi praktikum,
-bukan deployment operasional.
+Model Production v1 berhasil diuji menggunakan data yang tersedia dan input sintetis baru dengan 13 fitur. Pengujian tersebut menunjukkan kesiapan inferensi fungsional, bukan jaminan performa operasional. Artefak model yang digunakan untuk Docker kini dilacak di `docker_assets/model.dvc` dan disimpan pada remote DagsHub.
 
 ## Docker: Model Inference REST API
 
-Model Random Forest Production v1 telah dikemas sebagai REST API
-menggunakan Flask, Gunicorn, dan Docker.
+Sebelum LK09, model Production v1 telah dikemas menjadi API menggunakan **Flask, Gunicorn, dan Docker**. Dokumentasi ini dipisahkan karena implementasi kontainerisasi dilakukan pada tahapan sebelumnya.
 
-### Arsitektur
+| Endpoint | Fungsi |
+|---|---|
+| `GET /health` | Status API dan versi model |
+| `POST /predict` | Prediksi biner `SPIKE` / `NO SPIKE` dari 1–100 observasi, masing-masing 13 fitur |
+| `GET /tracking-status` | Pemeriksaan koneksi MLflow, ditambahkan pada LK09 |
 
-MLflow Model Registry (Production v1)
-→ Export model
-→ Flask REST API
-→ Docker Image
-→ Docker Container
-
-API menggunakan artefak model yang telah diekspor ke
-`docker_assets/model/`, sehingga tidak memerlukan koneksi
-ke MLflow Registry ketika menjalankan prediksi.
-
-### Endpoint API
-
-| Method | Endpoint | Fungsi |
-|---|---|---|
-| GET | `/health` | Memeriksa status API |
-| POST | `/predict` | Memprediksi SPIKE atau NO SPIKE |
-
-Endpoint `/predict` menerima JSON dengan key `instances`
-berisi 1–100 observasi. Setiap observasi harus memiliki
-13 fitur sesuai MLflow Model Signature.
-
-### Persiapan
-
-Sebelum membangun Docker Image, ekspor model Version 1
-dari MLflow Registry ke folder `docker_assets/model/`.
-
-Folder tersebut tidak disimpan di GitHub dan harus tersedia
-secara lokal saat proses Docker Build. Ekspor memerlukan
-akses ke database dan artefak MLflow hasil LK-07.
-
-### Build Docker Image
+Untuk menjalankan **API saja** tanpa Compose, pastikan artefak model sudah ditarik melalui DVC, lalu:
 
 ```bash
 docker build -t kalimantan-hotspot-api:v1 .
+docker run --rm -p 8001:8000 kalimantan-hotspot-api:v1
 ```
 
-### Menjalankan Container
+API memuat artefak dari `docker_assets/model/` saat startup; prediksi **tidak mengambil model langsung dari MLflow Registry**. Jangan jalankan container standalone pada port `8001` bersamaan dengan API Compose.
 
-```bash
-docker run -d \
-  --name kalimantan-hotspot-container \
-  -p 8001:8000 \
-  kalimantan-hotspot-api:v1
-```
+## LK-08: Otomatisasi Pipeline dengan GitHub Actions
 
-### Memeriksa API
+Workflow [`.github/workflows/mlops-automation.yaml`](.github/workflows/mlops-automation.yaml) berjalan saat ada **push ke `main`**. Pipeline memakai DVC/DagsHub untuk data, MLflow untuk pelacakan model, dan GitHub Actions Secrets untuk autentikasi.
 
-```bash
-curl http://localhost:8001/health
-```
-
-### Hasil Pengujian
-
-Pengujian Docker menggunakan dua skenario input sintetis
-dengan 13 fitur dan tanggal simulasi 1 Oktober 2026.
-
-| Skenario | Prediksi |
+| Job | Proses |
 |---|---|
-| Aktivitas rendah | 0 (NO SPIKE) |
-| Aktivitas meningkat | 1 (SPIKE) |
+| `testing` | Menarik dataset DVC dan menjalankan Pytest. |
+| `training` | Melatih kandidat setelah pengujian lulus dan mencatat eksperimen di MLflow. |
+| `evaluation_registry` | Mengevaluasi kandidat dan mendaftarkan yang lolos validasi ke **Staging**. |
 
-Kedua prediksi berhasil dikembalikan melalui endpoint
-`POST /predict` dengan HTTP 200.
+Pada pengujian LK08, **20 pengujian berhasil**. Registrasi kandidat ke Staging **bukan** deployment otomatis dan tidak mengganti artefak Production v1 yang digunakan oleh API.
 
-Pengujian membuktikan bahwa container dapat melakukan
-inferensi tanpa proses Flask lokal dan tanpa koneksi
-runtime ke MLflow Registry.
+## LK-09: Orkestrasi Layanan ML dengan Docker Compose
 
-### Keterbatasan
+[`docker-compose.yaml`](docker-compose.yaml) menjalankan tiga layanan pada jaringan internal `hotspot-network`:
 
-- Docker Image saat ini hanya tersedia secara lokal.
-- Artefak model harus disiapkan sebelum Docker Build.
-- REST API masih berupa prototipe untuk pengujian MLOps.
-- Belum diterapkan autentikasi, monitoring, dan deployment publik.
+| Service | Fungsi | Port host |
+|---|---|---|
+| `api-service` | Inferensi Random Forest dan koneksi tracking | `8001` |
+| `mlflow-server` | Tracking eksperimen dan artefak MLflow | `5000` |
+| `postgres` | Database metadata MLflow | Internal saja |
+
+### Menjalankan Seluruh Sistem
+
+Siapkan **Docker Engine/Compose**, DVC, dan akses ke remote DagsHub. Dari root repository, lakukan persiapan awal:
+
+```bash
+# Jika belum menginstal DVC, jalankan langkah Setup terlebih dahulu
+test -f .env || cp .env.example .env
+# Edit .env dan ganti POSTGRES_PASSWORD dengan nilai acak yang kuat
+# (gunakan huruf/angka agar aman pada URI koneksi database)
+dvc pull -r dagshub docker_assets/model.dvc
+```
+
+Pastikan `docker_assets/model/MLmodel` tersedia. Kemudian jalankan **seluruh layanan dengan satu perintah**:
+
+```bash
+docker compose up -d
+```
+
+Verifikasi layanan dan endpoint:
+
+```bash
+docker compose ps
+curl http://localhost:8001/health
+curl http://localhost:8001/tracking-status
+curl http://localhost:5000/health
+```
+
+Targetnya: ketiga layanan `healthy`, API mengembalikan model `KalimantanHotspotSpikeRF` v1, dan `/tracking-status` menampilkan `"mlflow_connected": true`.
+
+### Integrasi dan Persistence
+
+Compose menggunakan `depends_on` dan *healthcheck* agar PostgreSQL siap sebelum MLflow, kemudian MLflow siap sebelum API. Komunikasi antar-service menggunakan hostname internal seperti `mlflow-server:5000` dan `postgres:5432`.
+
+Metadata MLflow disimpan dalam volume `postgres_data`, sedangkan artefaknya berada di `mlflow_artifacts`. Pada pengujian LK09, metadata eksperimen dan file uji tetap tersedia setelah container dibuat ulang. API juga berhasil melakukan prediksi `NO SPIKE` dan membaca metadata dari MLflow melalui SDK. **Model prediksi tetap dimuat dari artefak lokal DVC**, bukan dari registry server LK09.
+
+Batas resource saat pengujian: API **1 CPU / 2 GB**, MLflow **0,6 CPU / 3 GB** (1 worker), dan PostgreSQL **0,4 CPU / 512 MB**. Batas MLflow disesuaikan setelah pengujian awal menemukan masalah kekurangan memori.
+
+Untuk menghentikan layanan tanpa menghapus volume:
+
+```bash
+docker compose down
+```
+
+Hindari `docker compose down -v` jika data persisten masih diperlukan. Pastikan port yang dipublikasikan hanya diakses pada lingkungan praktikum yang tepercaya.
+
+## Keterbatasan
+
+- Sistem masih berupa prototipe praktikum, belum dilengkapi autentikasi API, monitoring operasional, dan deployment publik.
+- Model menunjukkan *false positive* tinggi dan *distribution shift* pada evaluasi sebelumnya; status Production bukan jaminan siap digunakan secara operasional.
+- Model perlu ditarik dari DagsHub sebelum build; database MLflow LK09 tidak otomatis memuat riwayat registry LK07–LK08, dan replikasi dari clone bersih belum diuji menyeluruh.
+- Named volumes bertahan saat container dibuat ulang, tetapi tidak menggantikan mekanisme backup pada host lain.
 
 ## Next Steps
 
-- Optimasi ukuran Docker Image.
-- Deployment layanan inferensi.
-- Monitoring dan evaluasi kebutuhan retraining.
+- Uji replikasi dari clone baru dan tambahkan pengujian integrasi Compose otomatis.
+- Perkuat keamanan endpoint, pengelolaan secrets, backup, dan monitoring layanan.
+- Evaluasi kualitas prediksi dan strategi pembaruan model berdasarkan data terbaru.
 
 ## License
 
-Proyek ini menggunakan **MIT License**.
+Proyek menggunakan [MIT License](LICENSE).

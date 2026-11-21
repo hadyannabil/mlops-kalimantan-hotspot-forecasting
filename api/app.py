@@ -3,6 +3,7 @@ from pathlib import Path
 
 import mlflow
 import pandas as pd
+from mlflow.tracking import MlflowClient
 from flask import Flask, jsonify, request
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +44,33 @@ def health():
         "model": MODEL_NAME,
         "version": MODEL_VERSION
     })
+
+
+@app.route("/tracking-status", methods=["GET"])
+def tracking_status():
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+
+    if not tracking_uri:
+        return jsonify({
+            "status": "unconfigured",
+            "mlflow_connected": False
+        }), 503
+
+    try:
+        client = MlflowClient(tracking_uri=tracking_uri)
+        client.search_experiments(max_results=1)
+
+        return jsonify({
+            "status": "ok",
+            "mlflow_connected": True
+        }), 200
+
+    except Exception:
+        app.logger.exception("MLflow connection failed")
+        return jsonify({
+            "status": "unavailable",
+            "mlflow_connected": False
+        }), 503
 
 
 @app.route("/predict", methods=["POST"])

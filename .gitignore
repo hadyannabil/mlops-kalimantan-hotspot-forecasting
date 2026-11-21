@@ -254,7 +254,9 @@ mlflow.db-shm
 mlflow.db-wal
 mlartifacts/
 mlruns/
-/docker_assets/
 
 # LK-08 generated artifacts
 /outputs/
+
+# LK09: allow sharing the environment template
+!.env.example
