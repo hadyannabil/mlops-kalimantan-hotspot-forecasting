@@ -94,6 +94,45 @@ services:
     mem_limit: 2g
     restart: unless-stopped
 
+  model-serving:
+    image: kalimantan-hotspot-mlflow-serving:lk10
+    environment:
+      MLFLOW_MODELS_WORKERS: "1"
+    expose:
+      - "8080"
+    networks:
+      - hotspot-network
+    deploy:
+      replicas: 3
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ping', timeout=5)"
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    cpus: "0.5"
+    mem_limit: 1g
+    restart: unless-stopped
+
+  load-balancer:
+    image: nginx:1.28-alpine
+    ports:
+      - "127.0.0.1:8002:80"
+    volumes:
+      - ./deployment/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - hotspot-network
+    depends_on:
+      model-serving:
+        condition: service_healthy
+    cpus: "0.2"
+    mem_limit: 128m
+    restart: unless-stopped
+
 networks:
   hotspot-network:
     driver: bridge

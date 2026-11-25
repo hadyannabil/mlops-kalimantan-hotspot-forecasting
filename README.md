@@ -178,7 +178,7 @@ dvc pull -r dagshub docker_assets/model.dvc
 Pastikan `docker_assets/model/MLmodel` tersedia. Kemudian jalankan **seluruh layanan dengan satu perintah**:
 
 ```bash
-docker compose up -d
+docker compose up -d postgres mlflow-server api-service
 ```
 
 Verifikasi layanan dan endpoint:
@@ -207,6 +207,52 @@ docker compose down
 ```
 
 Hindari `docker compose down -v` jika data persisten masih diperlukan. Pastikan port yang dipublikasikan hanya diakses pada lingkungan praktikum yang tepercaya.
+
+## LK-10: Model Serving dan Horizontal Scaling
+
+Model Random Forest Production v1 dikemas menggunakan MLflow Models
+dan dijalankan dalam tiga replika melalui Docker Compose dengan
+NGINX sebagai load balancer.
+
+### Mengakses Endpoint API
+
+Pastikan Docker image `kalimantan-hotspot-mlflow-serving:lk10` tersedia.
+
+```bash
+docker compose up -d model-serving load-balancer
+docker compose ps
+```
+
+| Endpoint | Fungsi |
+|---|---|
+| `GET http://localhost:8002/ping` | Health check |
+| `POST http://localhost:8002/invocations` | Inferensi model |
+
+Contoh health check:
+
+```bash
+curl -i http://localhost:8002/ping
+```
+
+Endpoint inferensi menerima JSON dengan format `dataframe_records`
+berisi 13 fitur model. Prediksi `0` berarti NO SPIKE dan `1` berarti
+SPIKE. Header `X-Backend` menunjukkan replika yang menangani request.
+
+### Dynamic Scaling
+
+```bash
+# Menambah jumlah replika menjadi 4
+docker compose up -d --scale model-serving=4 model-serving
+
+# Memeriksa status replika
+docker compose ps model-serving
+
+# Mengembalikan jumlah replika menjadi 3
+docker compose up -d --scale model-serving=3 model-serving
+```
+
+NGINX mendistribusikan request menggunakan Round Robin dan mendeteksi
+perubahan jumlah replika melalui DNS internal Docker tanpa restart.
 
 ## Keterbatasan
 
