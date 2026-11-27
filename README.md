@@ -28,7 +28,7 @@ mlops-kalimantan-hotspot-forecasting/
 ├── src/                                       # ingestion, preprocessing, training, evaluasi
 ├── tests/                                     # pengujian otomatis
 ├── Dockerfile                                 # image Flask API
-├── docker-compose.yaml                       # orkestrasi tiga layanan LK09
+├── docker-compose.yaml                       # orkestrasi layanan LK09-LK11
 ├── .env.example                              # template environment
 ├── requirements.txt
 └── README.md
@@ -155,7 +155,7 @@ Pada pengujian LK08, **20 pengujian berhasil**. Registrasi kandidat ke Staging *
 
 ## LK-09: Orkestrasi Layanan ML dengan Docker Compose
 
-[`docker-compose.yaml`](docker-compose.yaml) menjalankan tiga layanan pada jaringan internal `hotspot-network`:
+[`docker-compose.yaml`](docker-compose.yaml) pada tahap LK09 menjalankan tiga layanan pada jaringan internal `hotspot-network`:
 
 | Service | Fungsi | Port host |
 |---|---|---|
@@ -216,7 +216,7 @@ NGINX sebagai load balancer.
 
 ### Mengakses Endpoint API
 
-Pastikan Docker image `kalimantan-hotspot-mlflow-serving:lk10` tersedia.
+Pada LK10, image serving menggunakan tag `kalimantan-hotspot-mlflow-serving:lk10`. Konfigurasi Compose terbaru menggunakan image LK11 yang dibangun dari base image LK10. Lihat panduan menjalankan sistem pada bagian LK11.
 
 ```bash
 docker compose up -d model-serving load-balancer
@@ -254,9 +254,51 @@ docker compose up -d --scale model-serving=3 model-serving
 NGINX mendistribusikan request menggunakan Round Robin dan mendeteksi
 perubahan jumlah replika melalui DNS internal Docker tanpa restart.
 
+## LK-11: Implementasi Observability dan Dashboard
+
+Prometheus dan Grafana diintegrasikan ke Docker Compose untuk
+memantau tiga replika model serving. Scraping metrik dilakukan
+setiap 5 detik melalui endpoint `/metrics`.
+
+### Menjalankan Monitoring
+
+Pastikan base image LK-10 tersedia.
+
+```bash
+docker build -t kalimantan-hotspot-mlflow-serving:lk11 deployment/serving
+docker compose up -d --scale model-serving=3 model-serving load-balancer prometheus grafana
+```
+
+| Layanan | URL |
+|---|---|
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 |
+
+Dashboard Grafana tersedia otomatis melalui provisioning dan
+menampilkan latensi, throughput, error rate, CPU, RAM,
+distribusi prediksi, serta probabilitas SPIKE.
+
+### Drift Detection dan Pengujian
+
+Data drift diukur menggunakan PSI pada fitur `hotspot_count`,
+`delta`, dan `rolling_mean_7` dengan baseline 30.016 observasi training.
+
+Pastikan dataset model-ready tersedia melalui DVC.
+Jalankan pengujian berikut secara berurutan:
+
+```bash
+python scripts/load_test.py --duration 120 --workers 4
+python scripts/simulate_drift.py --mode normal --duration 180
+python scripts/simulate_drift.py --mode drift --duration 180
+```
+
+Load test menghasilkan 1.679 request berhasil tanpa kegagalan.
+Simulasi drift berhasil mendeteksi pergeseran distribusi
+pada ketiga fitur dengan PSI di atas 0,2.
+
 ## Keterbatasan
 
-- Sistem masih berupa prototipe praktikum, belum dilengkapi autentikasi API, monitoring operasional, dan deployment publik.
+- Sistem masih berupa prototipe praktikum, belum dilengkapi autentikasi API, alerting otomatis yang tervalidasi, dan deployment publik.
 - Model menunjukkan *false positive* tinggi dan *distribution shift* pada evaluasi sebelumnya; status Production bukan jaminan siap digunakan secara operasional.
 - Model perlu ditarik dari DagsHub sebelum build; database MLflow LK09 tidak otomatis memuat riwayat registry LK07–LK08, dan replikasi dari clone bersih belum diuji menyeluruh.
 - Named volumes bertahan saat container dibuat ulang, tetapi tidak menggantikan mekanisme backup pada host lain.
@@ -264,7 +306,7 @@ perubahan jumlah replika melalui DNS internal Docker tanpa restart.
 ## Next Steps
 
 - Uji replikasi dari clone baru dan tambahkan pengujian integrasi Compose otomatis.
-- Perkuat keamanan endpoint, pengelolaan secrets, backup, dan monitoring layanan.
+- Perkuat keamanan endpoint, pengelolaan secrets, backup, dan alerting otomatis.
 - Evaluasi kualitas prediksi dan strategi pembaruan model berdasarkan data terbaru.
 
 ## License

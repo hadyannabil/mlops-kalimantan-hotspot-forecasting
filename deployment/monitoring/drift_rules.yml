@@ -1,0 +1,71 @@
+groups:
+  - name: model_drift
+    interval: 5s
+
+    rules:
+      # Aggregate observations from all replicas
+      - record: model:input_feature_bin_observations:2m
+        expr: |
+          sum by (feature, bin) (
+            increase(
+              model_input_feature_bin_total{
+                job="model-serving"
+              }[2m]
+            )
+          )
+
+      # Total observations per feature
+      - record: model:input_feature_observations:2m
+        expr: |
+          sum by (feature) (
+            model:input_feature_bin_observations:2m
+          )
+
+      # Reference distribution is identical on each replica
+      - record: model:input_feature_reference_ratio
+        expr: |
+          max by (feature, bin) (
+            model_input_feature_reference_ratio{
+              job="model-serving"
+            }
+          )
+
+      # Smoothed actual distribution
+      - record: model:input_feature_actual_ratio:2m
+        expr: |
+          (
+            (
+              model:input_feature_bin_observations:2m
+              + 0.5
+            )
+            /
+            on (feature) group_left()
+            (
+              model:input_feature_observations:2m
+              +
+              0.5 * count by (feature) (
+                model:input_feature_reference_ratio
+              )
+            )
+          )
+          and on (feature)
+          (
+            model:input_feature_observations:2m >= 200
+          )
+
+      # Population Stability Index
+      - record: model:input_feature_psi:2m
+        expr: |
+          sum by (feature) (
+            (
+              model:input_feature_actual_ratio:2m
+              -
+              model:input_feature_reference_ratio
+            )
+            *
+            ln(
+              model:input_feature_actual_ratio:2m
+              /
+              model:input_feature_reference_ratio
+            )
+          )
