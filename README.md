@@ -2,7 +2,7 @@
 
 Proyek **MLOps** untuk memprediksi potensi **lonjakan aktivitas hotspot (SPIKE / NO SPIKE)** pada 56 kabupaten/kota di Kalimantan dalam horizon **1–3 hari ke depan**. Model yang digunakan adalah **Random Forest**, dengan **Persistence** sebagai baseline pembanding.
 
-Proyek mencakup pengambilan dan pengolahan data NASA FIRMS, eksperimen MLflow, versioning DVC, otomatisasi GitHub Actions, serta layanan inferensi yang dijalankan bersama MLflow dan PostgreSQL melalui Docker Compose.
+Proyek mencakup pengolahan data NASA FIRMS, eksperimen MLflow, versioning DVC, otomatisasi GitHub Actions, orkestrasi Docker Compose, horizontal scaling, serta observability dan deteksi data drift menggunakan Prometheus dan Grafana.
 
 ## Data Source
 
@@ -23,8 +23,12 @@ mlops-kalimantan-hotspot-forecasting/
 ├── docker_assets/model.dvc                    # pointer model Production v1
 ├── docker_assets/model/                       # artefak model (diambil via DVC)
 ├── deployment/
-│   ├── mlflow/Dockerfile                      # image MLflow Server
-│   └── production_model.yaml                 # metadata model terpilih
+│   ├── mlflow/                                # MLflow Server
+│   ├── nginx/                                 # Load balancer
+│   ├── serving/                               # Model serving dan instrumentasi
+│   ├── monitoring/                            # Prometheus dan Grafana
+│   └── production_model.yaml                  # Metadata model Production
+├── scripts/                                   # Baseline drift dan simulasi
 ├── src/                                       # ingestion, preprocessing, training, evaluasi
 ├── tests/                                     # pengujian otomatis
 ├── Dockerfile                                 # image Flask API
@@ -44,7 +48,7 @@ Lingkungan pengembangan menggunakan **Python 3.12** dan GitHub Codespaces. Untuk
 python -m pip install -r requirements.txt
 ```
 
-Untuk menjalankan layanan LK09 diperlukan **Docker Engine** dan **Docker Compose**. Panduan menjalankan seluruh sistem tersedia pada bagian [LK09](#lk-09-orkestrasi-layanan-ml-dengan-docker-compose).
+Untuk menjalankan layanan LK09–LK11 diperlukan **Docker Engine** dan **Docker Compose**. Panduan tersedia pada bagian LK-09 hingga LK-11.
 
 ## Data Pipeline — LK04
 
@@ -163,7 +167,7 @@ Pada pengujian LK08, **20 pengujian berhasil**. Registrasi kandidat ke Staging *
 | `mlflow-server` | Tracking eksperimen dan artefak MLflow | `5000` |
 | `postgres` | Database metadata MLflow | Internal saja |
 
-### Menjalankan Seluruh Sistem
+### Menjalankan Layanan Dasar
 
 Siapkan **Docker Engine/Compose**, DVC, dan akses ke remote DagsHub. Dari root repository, lakukan persiapan awal:
 
@@ -175,7 +179,7 @@ test -f .env || cp .env.example .env
 dvc pull -r dagshub docker_assets/model.dvc
 ```
 
-Pastikan `docker_assets/model/MLmodel` tersedia. Kemudian jalankan **seluruh layanan dengan satu perintah**:
+Pastikan `docker_assets/model/MLmodel` tersedia. Kemudian jalankan tiga layanan dasar:
 
 ```bash
 docker compose up -d postgres mlflow-server api-service
@@ -262,7 +266,18 @@ setiap 5 detik melalui endpoint `/metrics`.
 
 ### Menjalankan Monitoring
 
-Pastikan base image LK-10 tersedia.
+Pastikan konfigurasi `.env` dan artefak model telah disiapkan
+sesuai panduan LK-09. Jika base image LK-10 belum tersedia,
+bangun terlebih dahulu menggunakan MLflow:
+
+```bash
+mlflow models build-docker \
+  --model-uri "$PWD/docker_assets/model" \
+  --name kalimantan-hotspot-mlflow-serving:lk10 \
+  --env-manager local
+```
+
+Kemudian bangun image LK-11 dan jalankan layanan monitoring:
 
 ```bash
 docker build -t kalimantan-hotspot-mlflow-serving:lk11 deployment/serving
@@ -283,7 +298,11 @@ distribusi prediksi, serta probabilitas SPIKE.
 Data drift diukur menggunakan PSI pada fitur `hotspot_count`,
 `delta`, dan `rolling_mean_7` dengan baseline 30.016 observasi training.
 
-Pastikan dataset model-ready tersedia melalui DVC.
+Ambil dataset model-ready melalui DVC:
+
+```bash
+dvc pull -r dagshub data/processed/hotspot_model_ready.csv.dvc
+```
 Jalankan pengujian berikut secara berurutan:
 
 ```bash
@@ -302,6 +321,8 @@ pada ketiga fitur dengan PSI di atas 0,2.
 - Model menunjukkan *false positive* tinggi dan *distribution shift* pada evaluasi sebelumnya; status Production bukan jaminan siap digunakan secara operasional.
 - Model perlu ditarik dari DagsHub sebelum build; database MLflow LK09 tidak otomatis memuat riwayat registry LK07–LK08, dan replikasi dari clone bersih belum diuji menyeluruh.
 - Named volumes bertahan saat container dibuat ulang, tetapi tidak menggantikan mekanisme backup pada host lain.
+
+- Deteksi data drift menggunakan PSI merupakan indikator awal perubahan distribusi input, bukan pengukuran langsung penurunan akurasi model.
 
 ## Next Steps
 
