@@ -95,7 +95,10 @@ services:
     restart: unless-stopped
 
   model-serving:
-    image: kalimantan-hotspot-mlflow-serving:lk10
+    build:
+      context: ./deployment/serving
+      dockerfile: Dockerfile
+    image: kalimantan-hotspot-mlflow-serving:lk11
     environment:
       MLFLOW_MODELS_WORKERS: "1"
     expose:
@@ -133,6 +136,40 @@ services:
     mem_limit: 128m
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./deployment/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deployment/monitoring/drift_rules.yml:/etc/prometheus/drift_rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+    networks:
+      - hotspot-network
+    cpus: "0.3"
+    mem_limit: 512m
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deployment/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deployment/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - hotspot-network
+    depends_on:
+      - prometheus
+    cpus: "0.3"
+    mem_limit: 512m
+    restart: unless-stopped
+
 networks:
   hotspot-network:
     driver: bridge
@@ -140,3 +177,5 @@ networks:
 volumes:
   postgres_data:
   mlflow_artifacts:
+  prometheus_data:
+  grafana_data:
